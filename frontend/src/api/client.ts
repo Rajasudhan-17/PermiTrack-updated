@@ -1,10 +1,7 @@
 // Centralized API Client Layer for Permitrack React Application
 
 const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || (import.meta.env as any).API_BASE_URL || '/api/v1').trim();
-const normalizedBase = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
-export const API_BASE_URL = normalizedBase.includes('/api/v1')
-  ? normalizedBase
-  : `${normalizedBase}/api/v1`;
+export const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 
 export class ApiError extends Error {
   status: number;
@@ -78,7 +75,21 @@ export async function request<T>(
     headers['X-Active-Role'] = activeRole;
   }
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  let url: string;
+  if (endpoint.startsWith('http')) {
+    url = endpoint;
+  } else {
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    if (API_BASE_URL.endsWith('/api/v1') && cleanEndpoint.startsWith('/api/v1/')) {
+      url = `${API_BASE_URL.replace(/\/api\/v1$/, '')}${cleanEndpoint}`;
+    } else {
+      url = `${API_BASE_URL}${cleanEndpoint}`;
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
+    url = url.replace('http://', 'https://');
+  }
 
   try {
     const response = await fetch(url, {
@@ -107,7 +118,11 @@ export async function request<T>(
     if (err instanceof ApiError) {
       throw err;
     }
-    throw new ApiError(500, err.message || 'Network error occurred. Please check your connection.');
+    const isNetworkError = err.message === 'Failed to fetch' || err.name === 'TypeError';
+    const errorMsg = isNetworkError 
+      ? 'Backend service is starting up or unreachable. Please verify VITE_API_BASE_URL (HTTPS) and try again in 10-20 seconds.'
+      : (err.message || 'Network error occurred. Please check your connection.');
+    throw new ApiError(500, errorMsg);
   }
 }
 
