@@ -57,7 +57,16 @@ def create_app(test_config=None):
     mail.init_app(app)
     login_manager.init_app(app)
 
-    CORS(app, resources={r"/api/*": {"origins": app.config.get("CORS_ALLOWED_ORIGINS", "*")}}, supports_credentials=True)
+    cors_origins = app.config.get("CORS_ALLOWED_ORIGINS", "*")
+    if isinstance(cors_origins, str) and "," in cors_origins:
+        cors_origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+    CORS(
+        app,
+        resources={r"/*": {"origins": cors_origins}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "X-API-Token", "X-Active-Role", "Authorization", "X-CSRF-Token"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+    )
 
     register_security(app)
 
