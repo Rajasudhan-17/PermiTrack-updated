@@ -1,9 +1,10 @@
 // Centralized API Client Layer for Permitrack React Application
 
-const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
-export const API_BASE_URL = rawBaseUrl.includes('/api/v1')
-  ? rawBaseUrl
-  : (rawBaseUrl.endsWith('/') ? `${rawBaseUrl}api/v1` : `${rawBaseUrl}/api/v1`);
+const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || (import.meta.env as any).API_BASE_URL || '/api/v1').trim();
+const normalizedBase = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+export const API_BASE_URL = normalizedBase.includes('/api/v1')
+  ? normalizedBase
+  : `${normalizedBase}/api/v1`;
 
 export class ApiError extends Error {
   status: number;
