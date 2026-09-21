@@ -9,7 +9,6 @@ export interface ProfileData {
   db_role?: string;
   department?: string;
   roll_number?: string;
-  leave_balance?: number;
   mentor_name?: string;
   faculty_advisor?: string;
   father_name?: string;

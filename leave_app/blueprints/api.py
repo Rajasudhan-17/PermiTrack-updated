@@ -285,7 +285,6 @@ def api_dashboard(current_user):
         pending_leave, pending_od = pending_counts_for_user(current_user)
         metrics = {
             "role": current_user.role,
-            "leave_balance": current_user.leave_balance,
             "pending_leave_reviews": pending_leave,
             "pending_od_reviews": pending_od,
             "applied_leaves_count": Leave.query.filter_by(requested_by=current_user.id).count(),
@@ -727,7 +726,6 @@ def api_profile(current_user):
         "role": getattr(current_user, "role", "student"),
         "db_role": getattr(current_user, "db_role", "student"),
         "department": dept_name or "General Department",
-        "leave_balance": getattr(current_user, "leave_balance", 20),
         "mentor_name": mentor_name or "Not assigned",
         "faculty_advisor": faculty_adv or "Not assigned",
         "roll_number": getattr(current_user, "register_number", None) or current_user.username or "N/A",
@@ -1013,7 +1011,6 @@ def api_admin_create_user(current_user):
         username=username,
         email=email,
         role=role,
-        leave_balance=999 if role == Role.ADMIN.value else 20,
         register_number=register_number,
         date_of_birth=dob,
         father_name=father_name,

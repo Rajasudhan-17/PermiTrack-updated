@@ -85,7 +85,6 @@ def seed_data(app):
         email="student@example.com",
         role=Role.STUDENT.value,
         full_name="Test Student",
-        leave_balance=15,
         mentor_id=mentor.id,
         department_id=dept.id,
         class_group_id=class_group.id,

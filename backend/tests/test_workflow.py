@@ -4,14 +4,11 @@ from leave_app.models import Leave, RequestStatus, User, Role
 from leave_app.services.workflows import submit_leave_request, apply_leave_review
 
 
-def test_leave_approval_workflow_and_balance_deduction(app, seed_data):
+def test_leave_approval_workflow(app, seed_data):
     student = seed_data["student"]
     mentor = seed_data["mentor"]
     faculty = seed_data["faculty"]
     hod = seed_data["hod"]
-
-    # Student balance initially 15
-    assert student.leave_balance == 15
 
     # 1. Student submits a leave request for 3 days
     start_date = date.today()
@@ -23,7 +20,6 @@ def test_leave_approval_workflow_and_balance_deduction(app, seed_data):
     assert success is True
     assert leave is not None
     assert leave.status == RequestStatus.PENDING.value
-    assert student.leave_balance == 15  # Balance not deducted yet
 
     # 2. Mentor reviews and approves
     success, flash_res = apply_leave_review(
@@ -31,7 +27,6 @@ def test_leave_approval_workflow_and_balance_deduction(app, seed_data):
     )
     assert success is True
     assert leave.status == RequestStatus.MENTOR_APPROVED.value
-    assert student.leave_balance == 15
 
     # 3. Faculty reviews and approves
     success, flash_res = apply_leave_review(
@@ -39,18 +34,13 @@ def test_leave_approval_workflow_and_balance_deduction(app, seed_data):
     )
     assert success is True
     assert leave.status == RequestStatus.FACULTY_APPROVED.value
-    assert student.leave_balance == 15
 
-    # 4. HOD reviews and approves (final deduction occurs)
+    # 4. HOD reviews and approves
     success, flash_res = apply_leave_review(
         leave.id, hod.id, "APPROVE", "HOD Approved"
     )
     assert success is True
     assert leave.status == RequestStatus.APPROVED.value
-
-    # Refresh student from DB session to verify deduction
-    student_refreshed = db.session.get(User, student.id)
-    assert student_refreshed.leave_balance == 12  # 15 - 3 = 12 days
 
 
 def test_leave_rejection_workflow(app, seed_data):
@@ -73,10 +63,6 @@ def test_leave_rejection_workflow(app, seed_data):
     )
     assert success is True
     assert leave.status == RequestStatus.REJECTED.value
-
-    # Refresh student from DB session to verify balance remains 15
-    student_refreshed = db.session.get(User, student.id)
-    assert student_refreshed.leave_balance == 15
 
 
 def test_od_approval_workflow(app, seed_data):

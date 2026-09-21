@@ -91,7 +91,6 @@ export const ProfilePage: React.FC = () => {
     department: profile?.department || 'General Department',
     mentorName: profile?.mentor_name || 'Not assigned',
     facultyAdvisor: profile?.faculty_advisor || 'Not assigned',
-    leaveBalance: profile?.leave_balance ?? 20,
     fatherName: profile?.father_name || 'Not specified',
     dob: profile?.date_of_birth || 'Not specified',
   };
@@ -140,7 +139,6 @@ export const ProfilePage: React.FC = () => {
             <p className="text-xs text-text-muted mt-0.5">@{profileDisplay.username} • Roll/Reg No: {profileDisplay.rollNumber}</p>
             <div className="mt-2 flex items-center gap-2">
               <Badge variant="primary" size="sm">{profileDisplay.department}</Badge>
-              <Badge variant="neutral" size="sm">Leave Balance: {profileDisplay.leaveBalance} Days</Badge>
             </div>
           </div>
         </div>
@@ -154,10 +152,6 @@ export const ProfilePage: React.FC = () => {
             <div className="p-3 bg-bg-secondary rounded-lg border border-border">
               <span className="text-text-muted block text-[11px]">Department / Specialization:</span>
               <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
-            </div>
-            <div className="p-3 bg-bg-secondary rounded-lg border border-border">
-              <span className="text-text-muted block text-[11px]">Leave Quota Balance:</span>
-              <span className="font-semibold text-text-primary text-sm">{profileDisplay.leaveBalance} Days</span>
             </div>
             <div className="p-3 bg-bg-secondary rounded-lg border border-border">
               <span className="text-text-muted block text-[11px]">Assigned Student Mentor:</span>

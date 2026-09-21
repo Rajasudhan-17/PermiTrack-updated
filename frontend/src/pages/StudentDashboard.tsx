@@ -101,7 +101,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     rollNumber: props.user?.rollNumber || '',
     department: props.user?.department || '',
     semester: props.user?.semester || 'Semester 6',
-    leaveBalance: props.user?.leaveBalance || 15,
   });
 
   const [fetchedAttendance, setFetchedAttendance] = useState<{
@@ -114,7 +113,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const [requests, setRequests] = useState<RequestItem[]>(props.requestsData || []);
   const [activity, setActivity] = useState<ActivityFeedItem[]>(props.activityData || []);
   const [odSummary, setOdSummary] = useState({ approved: 0, pending: 0, rejected: 0 });
-  const [leaveSummary, setLeaveSummary] = useState({ totalAllowed: 15, used: 0, casualUsed: 0, medicalUsed: 0 });
 
   const [applyLeaveModal, setApplyLeaveModal] = useState(false);
   const [applyOdModal, setApplyOdModal] = useState(false);
@@ -156,13 +154,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
           rollNumber: profileData.roll_number || profileData.username,
           department: profileData.department || 'Academic Department',
           semester: 'Semester 6',
-          leaveBalance: profileData.leave_balance ?? 15,
-        });
-        setLeaveSummary({
-          totalAllowed: 15,
-          used: 15 - (profileData.leave_balance ?? 15),
-          casualUsed: Math.max(0, 15 - (profileData.leave_balance ?? 15)),
-          medicalUsed: 0,
         });
       }
 
@@ -229,7 +220,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     totalWorkingDays: 0,
     minRequiredPercentage: 80,
   };
-  const leaveSummaryData = leaveSummary;
   const odSummaryData = odSummary;
   const requestsData = requests;
   const activityData = activity;
@@ -247,9 +237,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const attendancePercentage = totalWorkingDays > 0 ? Math.round((presentDays / totalWorkingDays) * 100) : 100;
   const percentageDifference = attendancePercentage - minRequiredPercentage;
   const isGoodStanding = attendancePercentage >= minRequiredPercentage;
-
-  // Calculated Leave Balances
-  const remainingLeave = user.leaveBalance;
 
   // Calculated OD Total
   const totalOd = odSummaryData.approved + odSummaryData.pending + odSummaryData.rejected;
@@ -311,7 +298,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
               {getGreeting()}, {user.name} 👋
             </h1>
             <p className="text-xs sm:text-sm text-text-secondary">
-              Here is your attendance, leave balance, and OD request overview.
+              Here is your attendance and OD request overview.
             </p>
           </div>
 
@@ -356,7 +343,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
       {/* DASHBOARD GRID: 2 COLUMNS ON DESKTOP */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LEFT COLUMN (Span 2): Attendance Overview + Leave & OD Summary */}
+        {/* LEFT COLUMN (Span 2): Attendance Overview + OD Summary */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* 2. ATTENDANCE OVERVIEW CARD */}
@@ -418,78 +405,37 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
             </div>
           </Card>
 
-          {/* 4. LEAVE BALANCE & 5. OD SUMMARY GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            
-            {/* Leave Balance Card */}
-            <Card className="p-5 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Leave Balance</span>
-                  <div className="w-8 h-8 rounded-lg bg-primary-subtle text-primary flex items-center justify-center">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                </div>
-                
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-3xl font-bold text-text-primary font-display">{remainingLeave}</span>
-                  <span className="text-xs text-text-muted">/ {leaveSummaryData.totalAllowed} days remaining</span>
-                </div>
-
-                <ProgressBar 
-                  value={remainingLeave} 
-                  max={leaveSummaryData.totalAllowed} 
-                  variant="primary" 
-                  showPercentage={false} 
-                  size="sm" 
-                  className="mb-4"
-                />
-
-                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/50 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">Casual Used:</span>
-                    <span className="font-semibold text-text-primary">{leaveSummaryData.casualUsed} days</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">Medical Used:</span>
-                    <span className="font-semibold text-text-primary">{leaveSummaryData.medicalUsed} days</span>
-                  </div>
+          {/* 5. OD SUMMARY CARD */}
+          <Card className="p-5">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">On Duty (OD) Summary</span>
+                <div className="w-8 h-8 rounded-lg bg-info-subtle text-info flex items-center justify-center">
+                  <Briefcase className="w-4 h-4" />
                 </div>
               </div>
-            </Card>
 
-            {/* OD Summary Card */}
-            <Card className="p-5 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">On Duty (OD) Summary</span>
-                  <div className="w-8 h-8 rounded-lg bg-info-subtle text-info flex items-center justify-center">
-                    <Briefcase className="w-4 h-4" />
-                  </div>
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-3xl font-bold text-text-primary font-display">{odSummaryData.approved}</span>
+                <span className="text-xs text-text-muted">Approved ODs ({totalOd} Total Applied)</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-center">
+                <div className="p-2 bg-bg-secondary rounded">
+                  <span className="text-xs font-bold text-success block">{odSummaryData.approved}</span>
+                  <span className="text-[10px] text-text-muted">Approved</span>
                 </div>
-
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-3xl font-bold text-text-primary font-display">{odSummaryData.approved}</span>
-                  <span className="text-xs text-text-muted">Approved ODs ({totalOd} Total Applied)</span>
+                <div className="p-2 bg-bg-secondary rounded">
+                  <span className="text-xs font-bold text-warning block">{odSummaryData.pending}</span>
+                  <span className="text-[10px] text-text-muted">Pending</span>
                 </div>
-
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50 text-center">
-                  <div className="p-2 bg-bg-secondary rounded">
-                    <span className="text-xs font-bold text-success block">{odSummaryData.approved}</span>
-                    <span className="text-[10px] text-text-muted">Approved</span>
-                  </div>
-                  <div className="p-2 bg-bg-secondary rounded">
-                    <span className="text-xs font-bold text-warning block">{odSummaryData.pending}</span>
-                    <span className="text-[10px] text-text-muted">Pending</span>
-                  </div>
-                  <div className="p-2 bg-bg-secondary rounded">
-                    <span className="text-xs font-bold text-danger block">{odSummaryData.rejected}</span>
-                    <span className="text-[10px] text-text-muted">Rejected</span>
-                  </div>
+                <div className="p-2 bg-bg-secondary rounded">
+                  <span className="text-xs font-bold text-danger block">{odSummaryData.rejected}</span>
+                  <span className="text-[10px] text-text-muted">Rejected</span>
                 </div>
               </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
 
           {/* 6. RECENT REQUESTS SECTION */}
           <Card className="p-6">

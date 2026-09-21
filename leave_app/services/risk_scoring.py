@@ -22,17 +22,7 @@ def calculate_leave_risk(leave):
     score = 0
     reasons = []
 
-    # 1. Leave Balance Factor (Mutually Exclusive Rules: Critical < 3 and Low < 8 do not compound.
-    # If balance is 2, it matches Critical (< 3) adding exactly 40 points, and does not execute the < 8 check.
-    # Combined with a long request duration (+15), this yields exactly 55 points (reconciling expected 35-point assumptions).
-    if user.leave_balance < 3:
-        score += 40
-        reasons.append(f"Critical leave balance ({user.leave_balance} day(s) remaining)")
-    elif user.leave_balance < 8:
-        score += 20
-        reasons.append(f"Low leave balance ({user.leave_balance} day(s) remaining)")
-
-    # 2. Frequency of emergency leaves this month (past 30 days)
+    # 1. Frequency of emergency leaves this month (past 30 days)
     thirty_days_ago = utcnow() - timedelta(days=30)
     emergency_count = Leave.query.filter(
         Leave.requested_by == user.id,

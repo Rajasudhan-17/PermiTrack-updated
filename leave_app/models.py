@@ -82,7 +82,6 @@ class User(UserMixin, db.Model):
     __tablename__ = "user"
     __table_args__ = (
         db.CheckConstraint(f"role in ({ROLE_SQL})", name="ck_user_role_valid"),
-        db.CheckConstraint("leave_balance >= 0", name="ck_user_leave_balance_non_negative"),
         db.Index("ix_user_role", "role"),
         db.Index("ix_user_department_role", "department_id", "role"),
         db.Index("ix_user_class_group_id", "class_group_id"),
@@ -95,7 +94,6 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(150))
     _role = db.Column("role", db.String(20), default=Role.STUDENT.value, nullable=False)
-    leave_balance = db.Column(db.Integer, default=20, nullable=False)
 
     @property
     def db_role(self):

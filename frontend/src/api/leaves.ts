@@ -15,7 +15,6 @@ export interface LeaveApiItem {
 
 export interface DashboardMetrics {
   role: string;
-  leave_balance?: number;
   pending_leave_reviews?: number;
   pending_od_reviews?: number;
   applied_leaves_count?: number;

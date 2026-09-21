@@ -29,7 +29,6 @@ def ensure_seed_data():
             email="admin@example.com",
             full_name="Administrator",
             role=Role.ADMIN.value,
-            leave_balance=999,
         )
         admin.set_password(admin_password)
         db.session.add(admin)
@@ -41,7 +40,6 @@ def ensure_seed_data():
             email="hod@example.com",
             full_name="Head of Department",
             role=Role.HOD.value,
-            leave_balance=20,
             department_id=cs_department.id,
         )
         hod.set_password(os.environ.get("INIT_HOD_PASSWORD", "change-me-hod"))
@@ -56,7 +54,6 @@ def ensure_seed_data():
             email="faculty@example.com",
             full_name="Faculty Member",
             role=Role.FACULTY.value,
-            leave_balance=20,
             department_id=cs_department.id,
         )
         faculty.set_password(os.environ.get("INIT_FACULTY_PASSWORD", "change-me-faculty"))
@@ -71,7 +68,6 @@ def ensure_seed_data():
             email="mentor@example.com",
             full_name="Mentor One",
             role=Role.MENTOR.value,
-            leave_balance=20,
             department_id=cs_department.id,
         )
         mentor.set_password(os.environ.get("INIT_MENTOR_PASSWORD", "password123"))
@@ -84,7 +80,6 @@ def ensure_seed_data():
             email="coordinator@example.com",
             full_name="Event Coordinator",
             role=Role.EVENT_COORDINATOR.value,
-            leave_balance=20,
             department_id=cs_department.id,
         )
         coordinator.set_password(os.environ.get("INIT_COORDINATOR_PASSWORD", "password123"))
@@ -100,7 +95,6 @@ def ensure_seed_data():
             role=Role.STUDENT.value,
             class_group_id=class_group.id,
             department_id=cs_department.id,
-            leave_balance=20,
             mentor_id=mentor_user.id if mentor_user else None,
         )
         student.set_password(os.environ.get("INIT_STUDENT_PASSWORD", "change-me-student"))

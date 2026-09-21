@@ -61,10 +61,6 @@ def _delete_leave_records(leaves, restore_balance=False):
     deleted_count = 0
 
     for leave in leaves:
-        if restore_balance and leave.status == RequestStatus.APPROVED.value and leave.requester:
-            requested_days = (leave.end_date - leave.start_date).days + 1
-            leave.requester.leave_balance += requested_days
-
         _remove_proof_file(current_app.config["LEAVE_UPLOAD_PREFIX"], leave.proof_filename)
         db.session.delete(leave)
         deleted_count += 1
@@ -278,7 +274,6 @@ def admin_create_user():
             username=username,
             email=email,
             role=role,
-            leave_balance=999 if role == Role.ADMIN.value else 20,
             register_number=register_number,
             date_of_birth=dob,
             father_name=father_name,

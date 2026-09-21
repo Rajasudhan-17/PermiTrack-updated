@@ -341,20 +341,6 @@ def submit_leave_request(user, start_date, end_date, reason, is_emergency):
             return False, None, ("No mentor is assigned to your account yet. Please contact the HOD/Admin.", "danger")
 
         requested_days = (end_date - start_date).days + 1
-        if (
-            locked_user.role == Role.STUDENT.value
-            and not is_emergency
-            and locked_user.leave_balance < requested_days
-        ):
-            db.session.rollback()
-            return (
-                False,
-                None,
-                (
-                    f"Not enough leave balance. You currently have {locked_user.leave_balance} day(s) left.",
-                    "danger",
-                ),
-            )
 
         leave = Leave(
             requested_by=locked_user.id,
@@ -430,15 +416,6 @@ def apply_leave_review(leave_id, reviewer_id, action, comment):
                 flash_message = "Leave approved by faculty and forwarded to the HOD."
                 flash_category = "success"
             elif reviewer.role == Role.HOD.value:
-                requested_days = (leave.end_date - leave.start_date).days + 1
-                if applicant.leave_balance < requested_days:
-                    db.session.rollback()
-                    return False, (
-                        f"The student does not have enough leave balance ({applicant.leave_balance} day(s) left).",
-                        "danger",
-                    )
-
-                applicant.leave_balance -= requested_days
                 leave.status = RequestStatus.APPROVED.value
                 leave.approved_by = reviewer.id
                 email_subject = "Leave Approved"

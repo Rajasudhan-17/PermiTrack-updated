@@ -362,16 +362,7 @@
 <div>
   <!-- Balance Progress Cards -->
   <div class="stat-card mb-4">
-    <div class="stat-card-header">Leave & OD Balances</div>
-    <div class="mb-4">
-      <div class="d-flex justify-content-between small text-muted">
-        <span>Leave Balance Used</span>
-        <span>{{ current_user.leave_balance }} left</span>
-      </div>
-      <div class="progress-bar-hsl">
-        <div class="progress-fill-hsl bg-success" style="width: {{ (current_user.leave_balance / 20) * 100 }}%"></div>
-      </div>
-    </div>
+    <div class="stat-card-header">OD Balances</div>
 
     <div class="mb-2">
       <div class="d-flex justify-content-between small text-muted">
@@ -543,7 +534,7 @@
           <tr>
             <td><strong>{{ item.user.username }}</strong></td>
             <td>{{ item.user.email }}</td>
-            <td>{{ item.user.leave_balance }} Days left</td>
+            <td>{{ item.user.full_name or item.user.username }}</td>
             <td>
               <span class="fw-bold text-{% if item.attendance >= 80 %}success{% else %}danger{% endif %}">
                 {{ item.attendance }}%
