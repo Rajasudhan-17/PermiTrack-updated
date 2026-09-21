@@ -58,8 +58,11 @@ def create_app(test_config=None):
     login_manager.init_app(app)
 
     cors_origins = app.config.get("CORS_ALLOWED_ORIGINS", "*")
-    if isinstance(cors_origins, str) and "," in cors_origins:
+    if not cors_origins or cors_origins == "*":
+        cors_origins = r".*"
+    elif isinstance(cors_origins, str) and "," in cors_origins:
         cors_origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+
     CORS(
         app,
         resources={r"/*": {"origins": cors_origins}},
