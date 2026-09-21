@@ -104,6 +104,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     leaveBalance: props.user?.leaveBalance || 15,
   });
 
+  const [fetchedAttendance, setFetchedAttendance] = useState<{
+    presentDays: number;
+    absentDays: number;
+    totalWorkingDays: number;
+    minRequiredPercentage: number;
+  } | null>(props.attendanceData || null);
+
   const [requests, setRequests] = useState<RequestItem[]>(props.requestsData || []);
   const [activity, setActivity] = useState<ActivityFeedItem[]>(props.activityData || []);
   const [odSummary, setOdSummary] = useState({ approved: 0, pending: 0, rejected: 0 });
@@ -125,12 +132,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
 
   const loadDashboardData = async () => {
     try {
-      const [profileData, leavesData, odsData, notifData] = await Promise.all([
+      const [profileData, leavesData, odsData, notifData, dashboardData] = await Promise.all([
         profileApi.getProfile().catch(() => null),
         leavesApi.getLeaves().catch(() => []),
         odApi.getOds().catch(() => []),
         notificationsApi.getNotifications().catch(() => []),
+        leavesApi.getDashboard().catch(() => null),
       ]);
+
+      if (dashboardData?.attendance) {
+        setFetchedAttendance({
+          presentDays: dashboardData.attendance.present_days,
+          absentDays: dashboardData.attendance.absent_days,
+          totalWorkingDays: dashboardData.attendance.total_working_days,
+          minRequiredPercentage: dashboardData.attendance.min_required_percentage ?? 80,
+        });
+      }
 
       if (profileData) {
         setUserState({
@@ -206,10 +223,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   }, []);
 
   const user = userState;
-  const attendanceData = props.attendanceData || {
-    presentDays: 85,
-    absentDays: 5,
-    totalWorkingDays: 90,
+  const attendanceData = fetchedAttendance || props.attendanceData || {
+    presentDays: 0,
+    absentDays: 0,
+    totalWorkingDays: 0,
     minRequiredPercentage: 80,
   };
   const leaveSummaryData = leaveSummary;

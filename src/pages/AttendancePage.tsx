@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckSquare, Calendar, TrendingUp, AlertTriangle } from 'lucide-react';
 import {
   Card,
@@ -9,21 +9,35 @@ import {
   Badge,
   Alert
 } from '../components/ui';
+import { leavesApi } from '../api/leaves';
 
 export const AttendancePage: React.FC = () => {
-  const attendanceData = {
-    presentDays: 83,
-    absentDays: 7,
-    totalWorkingDays: 90,
+  const [attendanceData, setAttendanceData] = useState({
+    presentDays: 0,
+    absentDays: 0,
+    totalWorkingDays: 0,
     minRequiredPercentage: 80,
-    overallPercentage: 92,
-  };
+    overallPercentage: 100,
+  });
+
+  useEffect(() => {
+    leavesApi.getDashboard()
+      .then(res => {
+        if (res?.attendance) {
+          setAttendanceData({
+            presentDays: res.attendance.present_days,
+            absentDays: res.attendance.absent_days,
+            totalWorkingDays: res.attendance.total_working_days,
+            minRequiredPercentage: res.attendance.min_required_percentage ?? 80,
+            overallPercentage: res.attendance.percentage,
+          });
+        }
+      })
+      .catch(err => console.error('Failed to load attendance metrics', err));
+  }, []);
 
   const subjectBreakdown = [
-    { code: 'CS-601', name: 'Web Engineering Lab', present: 28, total: 30, percentage: 93 },
-    { code: 'CS-602', name: 'Database Systems', present: 26, total: 28, percentage: 92 },
-    { code: 'CS-603', name: 'Software Architecture', present: 19, total: 22, percentage: 86 },
-    { code: 'CS-604', name: 'Machine Learning', present: 10, total: 10, percentage: 100 },
+    { code: 'CS-601', name: 'Web Engineering Lab', present: attendanceData.presentDays, total: attendanceData.totalWorkingDays, percentage: attendanceData.overallPercentage },
   ];
 
   return (
@@ -32,7 +46,7 @@ export const AttendancePage: React.FC = () => {
       <PageHeader
         title="Attendance Analytics & History"
         subtitle="Detailed log of your working day attendance, subject breakdowns, and exam eligibility."
-        badge={<Badge variant="success">92% Overall Standing</Badge>}
+        badge={<Badge variant={attendanceData.overallPercentage >= 80 ? "success" : "warning"}>{`${attendanceData.overallPercentage}% Overall Standing`}</Badge>}
       />
 
       {/* Top Stat Cards */}

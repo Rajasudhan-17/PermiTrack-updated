@@ -291,6 +291,18 @@ def api_dashboard(current_user):
             "applied_leaves_count": Leave.query.filter_by(requested_by=current_user.id).count(),
             "applied_ods_count": OD.query.filter_by(requested_by=current_user.id).count(),
         }
+        if current_user.role == Role.STUDENT.value:
+            from ..services.attendance import get_student_attendance_summary
+
+            att_summary = get_student_attendance_summary(current_user.id)
+            metrics["attendance"] = {
+                "present_days": att_summary["present"] + att_summary["od"],
+                "absent_days": att_summary["absent"],
+                "leave_days": att_summary["leave"],
+                "total_working_days": att_summary["total"],
+                "percentage": att_summary["percentage"],
+                "min_required_percentage": 80,
+            }
     return jsonify(metrics)
 
 

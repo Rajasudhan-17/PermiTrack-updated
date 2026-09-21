@@ -23,6 +23,14 @@ export interface DashboardMetrics {
   admin_user_count?: number;
   admin_leave_count?: number;
   admin_od_count?: number;
+  attendance?: {
+    present_days: number;
+    absent_days: number;
+    leave_days: number;
+    total_working_days: number;
+    percentage: number;
+    min_required_percentage: number;
+  };
 }
 
 export const leavesApi = {
