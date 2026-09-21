@@ -57,13 +57,26 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const isActive = (path: string) => currentPath === path;
 
+  const handleNavigate = (path: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setLeaveOpen(false);
+    setOdOpen(false);
+    setAdminOpen(false);
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      window.history.pushState({}, '', path);
+      window.dispatchEvent(new Event('popstate'));
+    }
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border bg-bg/85 backdrop-blur-md transition-colors">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Brand Logo & Title */}
-          <a href="/" className="flex items-center gap-3 group shrink-0">
+          <a href="/" onClick={(e) => handleNavigate('/', e)} className="flex items-center gap-3 group shrink-0">
             <img 
               src="/static/logo.png" 
               alt="Permitrack Logo" 
@@ -82,6 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Dashboard */}
             <a
               href="/"
+              onClick={(e) => handleNavigate('/', e)}
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
                 isActive('/') || isActive('/dashboard')
                   ? 'text-primary bg-primary-subtle'
@@ -112,7 +126,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="absolute left-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn">
                     <a
                       href="/my-leaves"
-                      onClick={() => setLeaveOpen(false)}
+                      onClick={(e) => handleNavigate('/my-leaves', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <Calendar className="w-4 h-4 text-primary" />
@@ -120,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </a>
                     <a
                       href="/apply-leave"
-                      onClick={() => setLeaveOpen(false)}
+                      onClick={(e) => handleNavigate('/apply-leave', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <PlusCircle className="w-4 h-4 text-success" />
@@ -151,7 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="absolute left-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn">
                     <a
                       href="/my-ods"
-                      onClick={() => setOdOpen(false)}
+                      onClick={(e) => handleNavigate('/my-ods', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <Briefcase className="w-4 h-4 text-primary" />
@@ -159,7 +173,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </a>
                     <a
                       href="/apply-od"
-                      onClick={() => setOdOpen(false)}
+                      onClick={(e) => handleNavigate('/apply-od', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <PlusCircle className="w-4 h-4 text-info" />
@@ -175,6 +189,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <>
                 <a
                   href="/pending-leaves"
+                  onClick={(e) => handleNavigate('/pending-leaves', e)}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
                     isActive('/pending-leaves')
                       ? 'text-primary bg-primary-subtle'
@@ -186,6 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </a>
                 <a
                   href="/pending-ods"
+                  onClick={(e) => handleNavigate('/pending-ods', e)}
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
                     isActive('/pending-ods')
                       ? 'text-primary bg-primary-subtle'
@@ -202,6 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {userRole === 'faculty' && (
               <a
                 href="/attendance"
+                onClick={(e) => handleNavigate('/attendance', e)}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
                   isActive('/attendance')
                     ? 'text-primary bg-primary-subtle'
@@ -233,7 +250,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="absolute right-0 mt-2 w-52 bg-surface border border-border rounded-xl shadow-lg py-1.5 z-50 animate-fadeIn">
                     <a
                       href="/admin"
-                      onClick={() => setAdminOpen(false)}
+                      onClick={(e) => handleNavigate('/admin', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <Shield className="w-4 h-4 text-warning" />
@@ -241,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </a>
                     <a
                       href="/admin/assign-mentor"
-                      onClick={() => setAdminOpen(false)}
+                      onClick={(e) => handleNavigate('/admin/assign-mentor', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <Users className="w-4 h-4 text-primary" />
@@ -249,7 +266,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </a>
                     <a
                       href="/admin/create-user"
-                      onClick={() => setAdminOpen(false)}
+                      onClick={(e) => handleNavigate('/admin/create-user', e)}
                       className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <PlusCircle className="w-4 h-4 text-success" />
@@ -298,6 +315,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         userEmail={userEmail}
         onLogout={onLogout}
         onSwitchRole={onSwitchRole}
+        onNavigate={onNavigate}
       />
     </>
   );

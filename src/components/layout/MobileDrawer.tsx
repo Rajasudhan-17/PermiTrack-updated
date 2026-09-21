@@ -26,6 +26,7 @@ export interface MobileDrawerProps {
   userEmail?: string;
   onLogout?: () => void;
   onSwitchRole?: () => void;
+  onNavigate?: (path: string) => void;
 }
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({
@@ -36,6 +37,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   userEmail,
   onLogout,
   onSwitchRole,
+  onNavigate,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,6 +52,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
+
+  const handleNavigate = (path: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      window.history.pushState({}, '', path);
+      window.dispatchEvent(new Event('popstate'));
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -82,7 +95,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         {/* User Card */}
         <a
           href="/profile"
-          onClick={onClose}
+          onClick={(e) => handleNavigate('/profile', e)}
           className="p-4 border-b border-border bg-surface-elevated/40 flex items-center gap-3 hover:bg-surface-elevated transition-colors group cursor-pointer"
         >
           <div className="w-10 h-10 rounded-full bg-primary text-[#07151F] font-bold text-sm flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
@@ -91,7 +104,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-semibold text-text-primary truncate group-hover:text-primary transition-colors">{userName}</h4>
-              <span className="text-[11px] font-medium text-primary">View Profile &rarr;</span>
+              <span className="text-[11px] font-medium text-primary">View Profile &rrArr;</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <Badge variant="primary" size="sm">
@@ -110,7 +123,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </div>
             <a
               href="/"
-              onClick={onClose}
+              onClick={(e) => handleNavigate('/', e)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
             >
               <LayoutDashboard className="w-4 h-4 text-primary" />
@@ -118,7 +131,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </a>
             <a
               href="/profile"
-              onClick={onClose}
+              onClick={(e) => handleNavigate('/profile', e)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
             >
               <User className="w-4 h-4 text-primary" />
@@ -134,7 +147,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
               <a
                 href="/my-leaves"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/my-leaves', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <Calendar className="w-4 h-4 text-primary" />
@@ -142,7 +155,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </a>
               <a
                 href="/apply-leave"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/apply-leave', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <PlusCircle className="w-4 h-4 text-success" />
@@ -159,7 +172,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
               <a
                 href="/my-ods"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/my-ods', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <Briefcase className="w-4 h-4 text-primary" />
@@ -167,7 +180,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </a>
               <a
                 href="/apply-od"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/apply-od', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <PlusCircle className="w-4 h-4 text-info" />
@@ -184,7 +197,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
               <a
                 href="/pending-leaves"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/pending-leaves', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <Clock className="w-4 h-4 text-warning" />
@@ -192,7 +205,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </a>
               <a
                 href="/pending-ods"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/pending-ods', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <FileCheck className="w-4 h-4 text-info" />
@@ -209,7 +222,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
               <a
                 href="/attendance"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/attendance', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <CheckSquare className="w-4 h-4 text-success" />
@@ -226,7 +239,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
               <a
                 href="/admin"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/admin', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <Shield className="w-4 h-4 text-warning" />
@@ -234,7 +247,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </a>
               <a
                 href="/admin/assign-mentor"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/admin/assign-mentor', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <Users className="w-4 h-4 text-primary" />
@@ -242,7 +255,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </a>
               <a
                 href="/admin/create-user"
-                onClick={onClose}
+                onClick={(e) => handleNavigate('/admin/create-user', e)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
               >
                 <UserPlus className="w-4 h-4 text-success" />
