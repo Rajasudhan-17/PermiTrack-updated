@@ -80,19 +80,26 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </div>
 
         {/* User Card */}
-        <div className="p-4 border-b border-border bg-surface-elevated/40 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary text-[#07151F] font-bold text-sm flex items-center justify-center shrink-0">
+        <a
+          href="/profile"
+          onClick={onClose}
+          className="p-4 border-b border-border bg-surface-elevated/40 flex items-center gap-3 hover:bg-surface-elevated transition-colors group cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-full bg-primary text-[#07151F] font-bold text-sm flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
             {userName ? userName[0].toUpperCase() : 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-semibold text-text-primary truncate">{userName}</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-text-primary truncate group-hover:text-primary transition-colors">{userName}</h4>
+              <span className="text-[11px] font-medium text-primary">View Profile &rarr;</span>
+            </div>
             <div className="flex items-center gap-2 mt-0.5">
               <Badge variant="primary" size="sm">
                 {(userRole || '').toUpperCase()}
               </Badge>
             </div>
           </div>
-        </div>
+        </a>
 
         {/* Links Navigation List */}
         <div className="flex-1 p-4 space-y-6">
@@ -108,6 +115,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <LayoutDashboard className="w-4 h-4 text-primary" />
               <span>Dashboard</span>
+            </a>
+            <a
+              href="/profile"
+              onClick={onClose}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
+            >
+              <User className="w-4 h-4 text-primary" />
+              <span>My Profile</span>
             </a>
           </div>
 
