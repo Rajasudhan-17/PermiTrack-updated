@@ -14,7 +14,9 @@ import { leavesApi } from '../api/leaves';
 export const AttendancePage: React.FC = () => {
   const [attendanceData, setAttendanceData] = useState({
     presentDays: 0,
+    odDays: 0,
     absentDays: 0,
+    leaveDays: 0,
     totalWorkingDays: 0,
     minRequiredPercentage: 80,
     overallPercentage: 100,
@@ -26,7 +28,9 @@ export const AttendancePage: React.FC = () => {
         if (res?.attendance) {
           setAttendanceData({
             presentDays: res.attendance.present_days,
+            odDays: res.attendance.od_days || 0,
             absentDays: res.attendance.absent_days,
+            leaveDays: res.attendance.leave_days || 0,
             totalWorkingDays: res.attendance.total_working_days,
             minRequiredPercentage: res.attendance.min_required_percentage ?? 80,
             overallPercentage: res.attendance.percentage,
@@ -37,7 +41,7 @@ export const AttendancePage: React.FC = () => {
   }, []);
 
   const subjectBreakdown = [
-    { code: 'CS-601', name: 'Web Engineering Lab', present: attendanceData.presentDays, total: attendanceData.totalWorkingDays, percentage: attendanceData.overallPercentage },
+    { code: 'CS-601', name: 'Web Engineering Lab', present: attendanceData.presentDays + attendanceData.odDays, total: attendanceData.totalWorkingDays, percentage: attendanceData.overallPercentage },
   ];
 
   return (
@@ -56,26 +60,26 @@ export const AttendancePage: React.FC = () => {
           value={`${attendanceData.overallPercentage}%`}
           icon={<CheckSquare className="w-5 h-5" />}
           variant="success"
-          subtitle="Above 80% requirement"
+          subtitle="Includes Present + OD"
         />
         <StatCard
           label="Days Present"
           value={attendanceData.presentDays}
           icon={<Calendar className="w-5 h-5" />}
           variant="primary"
-          subtitle="Out of 90 working days"
+          subtitle={`Out of ${attendanceData.totalWorkingDays} days`}
+        />
+        <StatCard
+          label="On Duty (OD) Days"
+          value={attendanceData.odDays}
+          variant="info"
+          subtitle="Counted as Present"
         />
         <StatCard
           label="Days Absent"
           value={attendanceData.absentDays}
           variant="danger"
-          subtitle="7 Approved Leaves / ODs"
-        />
-        <StatCard
-          label="Target Minimum"
-          value={`${attendanceData.minRequiredPercentage}%`}
-          variant="info"
-          subtitle="Required for Hall Ticket"
+          subtitle={`${attendanceData.leaveDays} Approved Leaves`}
         />
       </div>
 

@@ -69,6 +69,8 @@ export interface StudentDashboardProps {
   attendanceData?: {
     presentDays: number;
     absentDays: number;
+    leaveDays?: number;
+    odDays?: number;
     totalWorkingDays: number;
     minRequiredPercentage: number;
   };
@@ -106,9 +108,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const [fetchedAttendance, setFetchedAttendance] = useState<{
     presentDays: number;
     absentDays: number;
+    leaveDays: number;
+    odDays: number;
     totalWorkingDays: number;
     minRequiredPercentage: number;
-  } | null>(props.attendanceData || null);
+  } | null>(
+    props.attendanceData
+      ? {
+          presentDays: props.attendanceData.presentDays,
+          absentDays: props.attendanceData.absentDays,
+          leaveDays: props.attendanceData.leaveDays || 0,
+          odDays: props.attendanceData.odDays || 0,
+          totalWorkingDays: props.attendanceData.totalWorkingDays,
+          minRequiredPercentage: props.attendanceData.minRequiredPercentage,
+        }
+      : null
+  );
 
   const [requests, setRequests] = useState<RequestItem[]>(props.requestsData || []);
   const [activity, setActivity] = useState<ActivityFeedItem[]>(props.activityData || []);
@@ -142,6 +157,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
         setFetchedAttendance({
           presentDays: dashboardData.attendance.present_days,
           absentDays: dashboardData.attendance.absent_days,
+          leaveDays: dashboardData.attendance.leave_days || 0,
+          odDays: dashboardData.attendance.od_days || 0,
           totalWorkingDays: dashboardData.attendance.total_working_days,
           minRequiredPercentage: dashboardData.attendance.min_required_percentage ?? 80,
         });
@@ -217,6 +234,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
   const attendanceData = fetchedAttendance || props.attendanceData || {
     presentDays: 0,
     absentDays: 0,
+    leaveDays: 0,
+    odDays: 0,
     totalWorkingDays: 0,
     minRequiredPercentage: 80,
   };
@@ -232,9 +251,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
     return 'Good evening';
   };
 
-  // Calculated Attendance Metrics
-  const { presentDays, absentDays, totalWorkingDays, minRequiredPercentage } = attendanceData;
-  const attendancePercentage = totalWorkingDays > 0 ? Math.round((presentDays / totalWorkingDays) * 100) : 100;
+  // Calculated Attendance Metrics (Present + OD counts towards percentage)
+  const { presentDays, absentDays, odDays, totalWorkingDays, minRequiredPercentage } = attendanceData;
+  const effectivePresentDays = presentDays + (odDays || 0);
+  const attendancePercentage = totalWorkingDays > 0 ? Math.round((effectivePresentDays / totalWorkingDays) * 100) : 100;
   const percentageDifference = attendancePercentage - minRequiredPercentage;
   const isGoodStanding = attendancePercentage >= minRequiredPercentage;
 
@@ -374,14 +394,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = (props) => {
 
               {/* Stats Breakdown */}
               <div className="sm:col-span-2 space-y-3">
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <div className="p-3 bg-bg-secondary rounded-lg border border-border/60">
                     <div className="text-lg font-bold text-success font-display">{presentDays}</div>
-                    <div className="text-[11px] text-text-muted font-medium">Present Days</div>
+                    <div className="text-[11px] text-text-muted font-medium">Present</div>
+                  </div>
+                  <div className="p-3 bg-bg-secondary rounded-lg border border-border/60">
+                    <div className="text-lg font-bold text-info font-display">{odDays || 0}</div>
+                    <div className="text-[11px] text-text-muted font-medium">OD Days</div>
                   </div>
                   <div className="p-3 bg-bg-secondary rounded-lg border border-border/60">
                     <div className="text-lg font-bold text-danger font-display">{absentDays}</div>
-                    <div className="text-[11px] text-text-muted font-medium">Absent Days</div>
+                    <div className="text-[11px] text-text-muted font-medium">Absent</div>
                   </div>
                   <div className="p-3 bg-bg-secondary rounded-lg border border-border/60">
                     <div className="text-lg font-bold text-text-primary font-display">{totalWorkingDays}</div>

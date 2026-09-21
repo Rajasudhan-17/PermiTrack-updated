@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, logout_user
 
 from ..extensions import db
-from ..models import APIToken, Leave, OD, OTPToken, RequestStatus, Role, User, utcnow
+from ..models import APIToken, AttendanceRecord, AttendanceStatus, Leave, OD, OTPToken, RequestStatus, Role, User, utcnow
 from ..services.auth_security import clear_failed_logins, login_allowed, register_failed_login
 from ..services.workflows import pending_counts_for_user
 from ..services.risk_scoring import calculate_leave_risk, calculate_od_risk
@@ -283,21 +283,28 @@ def api_dashboard(current_user):
         }
     else:
         pending_leave, pending_od = pending_counts_for_user(current_user)
+        att_ods_count = AttendanceRecord.query.filter(
+            AttendanceRecord.student_id == current_user.id,
+            AttendanceRecord.status == AttendanceStatus.OD.value,
+            AttendanceRecord.od_id.is_(None),
+        ).count() if current_user.role == Role.STUDENT.value else 0
+
         metrics = {
             "role": current_user.role,
             "pending_leave_reviews": pending_leave,
             "pending_od_reviews": pending_od,
             "applied_leaves_count": Leave.query.filter_by(requested_by=current_user.id).count(),
-            "applied_ods_count": OD.query.filter_by(requested_by=current_user.id).count(),
+            "applied_ods_count": OD.query.filter_by(requested_by=current_user.id).count() + att_ods_count,
         }
         if current_user.role == Role.STUDENT.value:
             from ..services.attendance import get_student_attendance_summary
 
             att_summary = get_student_attendance_summary(current_user.id)
             metrics["attendance"] = {
-                "present_days": att_summary["present"] + att_summary["od"],
+                "present_days": att_summary["present"],
                 "absent_days": att_summary["absent"],
                 "leave_days": att_summary["leave"],
+                "od_days": att_summary["od"],
                 "total_working_days": att_summary["total"],
                 "percentage": att_summary["percentage"],
                 "min_required_percentage": 80,
@@ -333,7 +340,9 @@ def api_leaves(current_user):
 def api_ods(current_user):
     ods = OD.query.filter_by(requested_by=current_user.id).order_by(OD.applied_on.desc()).all()
     result = []
+    seen_dates = set()
     for o in ods:
+        seen_dates.add(o.event_date)
         result.append(
             {
                 "id": o.id,
@@ -346,6 +355,29 @@ def api_ods(current_user):
                 "proof_url": f"/api/v1/ods/{o.id}/proof" if o.proof_filename else None,
             }
         )
+
+    # Also surface direct attendance OD records marked by faculty
+    att_ods = AttendanceRecord.query.filter(
+        AttendanceRecord.student_id == current_user.id,
+        AttendanceRecord.status == AttendanceStatus.OD.value,
+        AttendanceRecord.od_id.is_(None),
+    ).all()
+
+    for att in att_ods:
+        if att.date not in seen_dates:
+            result.append(
+                {
+                    "id": f"ATT-{att.id}",
+                    "event_date": att.date.strftime("%Y-%m-%d"),
+                    "status": RequestStatus.APPROVED.value,
+                    "reason": att.reason or "Faculty Marked On Duty Attendance",
+                    "applied_on": att.marked_on.strftime("%Y-%m-%d %H:%M") if att.marked_on else att.date.strftime("%Y-%m-%d 00:00"),
+                    "review_comment": "Recorded directly via Class Attendance",
+                    "has_proof": False,
+                    "proof_url": None,
+                }
+            )
+
     return jsonify(result)
 
 

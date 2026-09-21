@@ -158,8 +158,9 @@ def save_attendance_sheet(class_group_id, date_obj, records_data, marker_user):
 def sync_attendance_for_approved_leave(leave):
     """
     When a leave request is approved by HOD, automatically updates any existing
-    attendance records for the student within the leave date range.
+    attendance records for the student within the leave date range, or creates them if missing.
     """
+    student = db.session.get(User, leave.requested_by)
     current_date = leave.start_date
     updated = False
     while current_date <= leave.end_date:
@@ -171,6 +172,19 @@ def sync_attendance_for_approved_leave(leave):
             record.reason = f"Approved Leave: {leave.reason}"
             record.leave_id = leave.id
             updated = True
+        elif student and student.class_group_id:
+            record = AttendanceRecord(
+                student_id=student.id,
+                class_group_id=student.class_group_id,
+                date=current_date,
+                status=AttendanceStatus.LEAVE.value,
+                reason=f"Approved Leave: {leave.reason}",
+                leave_id=leave.id,
+                marked_by=leave.approved_by or leave.requested_by,
+                marked_on=utcnow(),
+            )
+            db.session.add(record)
+            updated = True
         current_date = current_date.fromordinal(current_date.toordinal() + 1)
 
     if updated:
@@ -180,7 +194,7 @@ def sync_attendance_for_approved_leave(leave):
 def sync_attendance_for_approved_od(od):
     """
     When an OD request is approved by HOD, automatically updates any existing
-    attendance record for the student on the event date.
+    attendance record for the student on the event date, or creates one if missing.
     """
     record = AttendanceRecord.query.filter_by(
         student_id=od.requested_by, date=od.event_date
@@ -189,7 +203,21 @@ def sync_attendance_for_approved_od(od):
         record.status = AttendanceStatus.OD.value
         record.reason = f"Approved OD: {od.reason}"
         record.od_id = od.id
-        db.session.commit()
+    else:
+        student = db.session.get(User, od.requested_by)
+        if student and student.class_group_id:
+            record = AttendanceRecord(
+                student_id=student.id,
+                class_group_id=student.class_group_id,
+                date=od.event_date,
+                status=AttendanceStatus.OD.value,
+                reason=f"Approved OD: {od.reason}",
+                od_id=od.id,
+                marked_by=od.approved_by or od.requested_by,
+                marked_on=utcnow(),
+            )
+            db.session.add(record)
+    db.session.commit()
 
 
 def get_student_attendance_summary(student_id):

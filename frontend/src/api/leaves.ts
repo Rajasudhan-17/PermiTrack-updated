@@ -26,6 +26,7 @@ export interface DashboardMetrics {
     present_days: number;
     absent_days: number;
     leave_days: number;
+    od_days: number;
     total_working_days: number;
     percentage: number;
     min_required_percentage: number;
