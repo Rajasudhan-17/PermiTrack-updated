@@ -222,10 +222,23 @@ def sync_attendance_for_approved_od(od):
 
 def get_student_attendance_summary(student_id):
     """
-    Calculates attendance statistics for a student.
+    Calculates attendance statistics for a student using database SQL aggregation.
     """
-    records = AttendanceRecord.query.filter_by(student_id=student_id).all()
-    total = len(records)
+    from sqlalchemy import func
+
+    counts = dict(
+        db.session.query(AttendanceRecord.status, func.count(AttendanceRecord.id))
+        .filter(AttendanceRecord.student_id == student_id)
+        .group_by(AttendanceRecord.status)
+        .all()
+    )
+
+    present = counts.get(AttendanceStatus.PRESENT.value, 0)
+    absent = counts.get(AttendanceStatus.ABSENT.value, 0)
+    leave = counts.get(AttendanceStatus.LEAVE.value, 0)
+    od = counts.get(AttendanceStatus.OD.value, 0)
+    total = present + absent + leave + od
+
     if total == 0:
         return {
             "total": 0,
@@ -235,11 +248,6 @@ def get_student_attendance_summary(student_id):
             "od": 0,
             "percentage": 100.0,
         }
-
-    present = sum(1 for r in records if r.status == AttendanceStatus.PRESENT.value)
-    absent = sum(1 for r in records if r.status == AttendanceStatus.ABSENT.value)
-    leave = sum(1 for r in records if r.status == AttendanceStatus.LEAVE.value)
-    od = sum(1 for r in records if r.status == AttendanceStatus.OD.value)
 
     # Present + OD counts towards effective attendance percentage
     effective_present = present + od

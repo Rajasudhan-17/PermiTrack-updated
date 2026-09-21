@@ -340,6 +340,7 @@ class AttendanceRecord(db.Model):
         db.CheckConstraint(f"status in ({ATTENDANCE_STATUS_SQL})", name="ck_attendance_status_valid"),
         db.Index("ix_attendance_class_date", "class_group_id", "date"),
         db.Index("ix_attendance_student_date", "student_id", "date"),
+        db.Index("ix_attendance_student_status", "student_id", "status"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

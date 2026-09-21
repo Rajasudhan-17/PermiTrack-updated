@@ -309,7 +309,9 @@ def api_dashboard(current_user):
                 "percentage": att_summary["percentage"],
                 "min_required_percentage": 80,
             }
-    return jsonify(metrics)
+    res = jsonify(metrics)
+    res.headers["Cache-Control"] = "private, max-age=10"
+    return res
 
 
 @bp.route("/leaves", methods=["GET"])
@@ -332,7 +334,9 @@ def api_leaves(current_user):
                 "proof_url": f"/api/v1/leaves/{l.id}/proof" if l.proof_filename else None,
             }
         )
-    return jsonify(result)
+    res = jsonify(result)
+    res.headers["Cache-Control"] = "private, max-age=10"
+    return res
 
 
 @bp.route("/ods", methods=["GET"])
@@ -378,7 +382,9 @@ def api_ods(current_user):
                 }
             )
 
-    return jsonify(result)
+    res = jsonify(result)
+    res.headers["Cache-Control"] = "private, max-age=10"
+    return res
 
 
 @bp.route("/pending", methods=["GET"])

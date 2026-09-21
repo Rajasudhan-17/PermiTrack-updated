@@ -68,7 +68,8 @@ def create_app(test_config=None):
         resources={r"/*": {"origins": cors_origins}},
         supports_credentials=True,
         allow_headers=["Content-Type", "X-API-Token", "X-Active-Role", "Authorization", "X-CSRF-Token"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        max_age=86400,
     )
 
     register_security(app)
