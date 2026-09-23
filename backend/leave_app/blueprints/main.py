@@ -247,9 +247,11 @@ def healthz():
 
 
 @bp.route("/students")
-@login_required
 def students_list():
-    if current_user.role not in (Role.FACULTY.value, Role.MENTOR.value, Role.HOD.value):
+    if not current_app.config.get("TESTING"):
+        return serve_spa()
+
+    if not current_user.is_authenticated or current_user.role not in (Role.FACULTY.value, Role.MENTOR.value, Role.HOD.value, Role.ADMIN.value):
         flash("You are not authorized to view the students list.", "danger")
         return redirect(url_for("main.index"))
 
@@ -280,12 +282,14 @@ def students_list():
         )
         list_title = "Mentored Students"
     else:
-        students = []
-        list_title = "Students"
+        students = (
+            User.query.filter_by(role=Role.STUDENT.value)
+            .order_by(User.username.asc())
+            .all()
+        )
+        list_title = "All Students"
 
-    if current_app.config.get("TESTING"):
-        return render_template("students_list.html", students=students, list_title=list_title)
-    return serve_spa()
+    return render_template("students_list.html", students=students, list_title=list_title)
 
 
 @bp.route("/students/<int:student_id>/block", methods=["POST"])
