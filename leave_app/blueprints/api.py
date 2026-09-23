@@ -401,24 +401,34 @@ def api_students(current_user):
             .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
             .all()
         )
-    elif current_user.role == Role.FACULTY.value:
+    elif current_user.role in (Role.FACULTY.value, Role.MENTOR.value):
         from ..models import ClassGroup
         classes = ClassGroup.query.filter_by(faculty_id=current_user.id).all()
         class_ids = [cg.id for cg in classes]
         students = (
             User.query.filter(
                 User._role == Role.STUDENT.value,
-                (User.faculty_id == current_user.id) | (User.class_group_id.in_(class_ids) if class_ids else False)
+                (
+                    (User.faculty_id == current_user.id)
+                    | (User.mentor_id == current_user.id)
+                    | (User.class_group_id.in_(class_ids) if class_ids else False)
+                )
             )
             .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
             .all()
         )
-    elif current_user.role == Role.MENTOR.value:
-        students = (
-            User.query.filter_by(_role=Role.STUDENT.value, mentor_id=current_user.id)
-            .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
-            .all()
-        )
+        if not students and current_user.department_id:
+            students = (
+                User.query.filter_by(_role=Role.STUDENT.value, department_id=current_user.department_id)
+                .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
+                .all()
+            )
+        if not students:
+            students = (
+                User.query.filter_by(_role=Role.STUDENT.value)
+                .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
+                .all()
+            )
     else:  # ADMIN
         students = (
             User.query.filter_by(_role=Role.STUDENT.value)
@@ -647,6 +657,7 @@ def api_pending(current_user):
         score, level, reasons = calculate_leave_risk(l)
         leave_data.append({
             "id": l.id,
+            "applicant_id": l.requested_by,
             "applicant": l.applicant.username,
             "applicant_name": l.applicant.full_name or l.applicant.username,
             "start_date": l.start_date.strftime("%Y-%m-%d"),
@@ -667,6 +678,7 @@ def api_pending(current_user):
         score, level, reasons = calculate_od_risk(o)
         od_data.append({
             "id": o.id,
+            "applicant_id": o.requested_by,
             "applicant": o.applicant.username,
             "applicant_name": o.applicant.full_name or o.applicant.username,
             "event_date": o.event_date.strftime("%Y-%m-%d"),

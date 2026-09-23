@@ -14,10 +14,12 @@ import {
 import { getAuthenticatedUrl } from '../api/client';
 import { leavesApi } from '../api/leaves';
 import { odApi } from '../api/od';
+import { StudentDetailModal } from '../components/StudentDetailModal';
 
 export interface PendingItem {
   id: string;
   rawId: number;
+  applicantId?: number;
   applicantName: string;
   rollNumber: string;
   type: 'leave' | 'od';
@@ -41,6 +43,7 @@ export const PendingApprovalsPage: React.FC = () => {
   const [pendingLeaves, setPendingLeaves] = useState<PendingItem[]>([]);
   const [pendingOds, setPendingOds] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingStudentId, setViewingStudentId] = useState<number | null>(null);
 
   const fetchPending = () => {
     setLoading(true);
@@ -49,6 +52,7 @@ export const PendingApprovalsPage: React.FC = () => {
         const leavesMapped: PendingItem[] = (data.pending_leaves || []).map((l: any) => ({
           id: `L-${l.id}`,
           rawId: l.id,
+          applicantId: l.applicant_id,
           applicantName: l.applicant_name || l.applicant,
           rollNumber: l.applicant,
           type: 'leave',
@@ -66,6 +70,7 @@ export const PendingApprovalsPage: React.FC = () => {
         const odsMapped: PendingItem[] = (data.pending_ods || []).map((o: any) => ({
           id: `OD-${o.id}`,
           rawId: o.id,
+          applicantId: o.applicant_id,
           applicantName: o.applicant_name || o.applicant,
           rollNumber: o.applicant,
           type: 'od',
@@ -153,12 +158,19 @@ export const PendingApprovalsPage: React.FC = () => {
           {itemsToDisplay.map((item) => (
             <Card key={item.id} className="p-5 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary-subtle text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer group"
+                  onClick={() => item.applicantId && setViewingStudentId(item.applicantId)}
+                  title="Click to view detailed student profile & history"
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary-subtle text-primary font-bold text-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                     {item.applicantName[0]}
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-text-primary">{item.applicantName}</h4>
+                    <h4 className="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors flex items-center gap-1.5">
+                      {item.applicantName}
+                      <span className="text-[10px] text-primary font-normal group-hover:underline">View Profile &rarr;</span>
+                    </h4>
                     <span className="text-xs text-text-muted">Roll No: {item.rollNumber} • ID: {item.id}</span>
                   </div>
                 </div>
@@ -267,6 +279,13 @@ export const PendingApprovalsPage: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* STUDENT DETAIL MODAL */}
+      <StudentDetailModal
+        studentId={viewingStudentId}
+        isOpen={viewingStudentId !== null}
+        onClose={() => setViewingStudentId(null)}
+      />
 
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50">
