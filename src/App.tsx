@@ -17,7 +17,8 @@ import {
   ProfilePage,
   NotificationsPage,
   PendingApprovalsPage,
-  AdminPage
+  AdminPage,
+  StudentsListPage
 } from './pages';
 
 type RoleType = 'student' | 'faculty' | 'mentor' | 'hod' | 'admin';

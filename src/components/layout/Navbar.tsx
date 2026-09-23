@@ -230,6 +230,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               </a>
             )}
 
+            {/* My Students (Faculty / Mentor / HOD / Admin) */}
+            {(userRole === 'faculty' || userRole === 'mentor' || userRole === 'hod' || userRole === 'admin') && (
+              <a
+                href="/students"
+                onClick={(e) => handleNavigate('/students', e)}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  isActive('/students')
+                    ? 'text-primary bg-primary-subtle'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>My Students</span>
+              </a>
+            )}
+
             {/* Admin Tools Dropdown (Admin Only) */}
             {userRole === 'admin' && (
               <div ref={adminRef} className="relative">

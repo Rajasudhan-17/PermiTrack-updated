@@ -231,6 +231,23 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </div>
           )}
 
+          {/* Students Directory (Faculty / Mentor / HOD / Admin) */}
+          {(userRole === 'faculty' || userRole === 'mentor' || userRole === 'hod' || userRole === 'admin') && (
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider px-3 mb-1">
+                Student Directory
+              </div>
+              <a
+                href="/students"
+                onClick={(e) => handleNavigate('/students', e)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors min-h-[44px]"
+              >
+                <Users className="w-4 h-4 text-primary" />
+                <span>My Students</span>
+              </a>
+            </div>
+          )}
+
           {/* Admin (Admin Only) */}
           {userRole === 'admin' && (
             <div className="space-y-1">

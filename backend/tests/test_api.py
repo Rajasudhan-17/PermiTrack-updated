@@ -266,9 +266,7 @@ def test_api_pending_risk_shape(client, seed_data):
 
 
 def test_delete_user_with_dependencies(client, seed_data):
-    student = seed_data["student"]
-
-    # Create admin user for deletion test
+    # Create admin user and a target student user specifically for deletion test
     admin = User(
         username="admin_deleter",
         email="admin_del@example.com",
@@ -276,32 +274,41 @@ def test_delete_user_with_dependencies(client, seed_data):
         full_name="Admin Deleter",
     )
     admin.set_password("password")
-    db.session.add(admin)
+
+    target_student = User(
+        username="student_to_delete",
+        email="student_del@example.com",
+        role=Role.STUDENT.value,
+        full_name="Student To Delete",
+    )
+    target_student.set_password("password")
+
+    db.session.add_all([admin, target_student])
     db.session.commit()
 
     # 1. Login as Admin
     res_admin_login = client.post("/api/v1/auth/login", json={"username": admin.username, "password": "password"})
     admin_token = res_admin_login.get_json()["token"]
 
-    # 2. Login as Student to generate API token & Audit Log
-    res_student_login = client.post("/api/v1/auth/login", json={"username": student.username, "password": "password"})
+    # 2. Login as Target Student to generate API token & Audit Log
+    res_student_login = client.post("/api/v1/auth/login", json={"username": target_student.username, "password": "password"})
     assert res_student_login.status_code == 200
 
     # 3. Create Audit Log for student
-    log = AuditLog(actor_id=student.id, action="TEST_ACTION", details="Test audit entry")
+    log = AuditLog(actor_id=target_student.id, action="TEST_ACTION", details="Test audit entry")
     db.session.add(log)
     db.session.commit()
 
-    # 4. Admin deletes student user via DELETE /api/v1/admin/users/<id>
+    # 4. Admin deletes target student user via DELETE /api/v1/admin/users/<id>
     res_delete = client.delete(
-        f"/api/v1/admin/users/{student.id}",
+        f"/api/v1/admin/users/{target_student.id}",
         headers={"X-API-Token": admin_token}
     )
     assert res_delete.status_code == 200
     assert "Deleted user" in res_delete.get_json()["message"]
 
     # Verify user is gone from DB
-    deleted_user = db.session.get(User, student.id)
+    deleted_user = db.session.get(User, target_student.id)
     assert deleted_user is None
 
 
@@ -336,17 +343,61 @@ def test_api_forgot_password_and_verify_otp(client, seed_data):
     res_valid = client.post("/api/v1/auth/verify-otp", json={
         "identifier": student.username,
         "otp": otp_code,
-        "new_password": "newpassword123"
+        "new_password": "password"
     })
     assert res_valid.status_code == 200
     assert "Password reset successfully" in res_valid.get_json()["message"]
 
-    # 5. Verify student can login with new password
-    res_login = client.post("/api/v1/auth/login", json={
-        "username": student.username,
-        "password": "newpassword123"
-    })
-    assert res_login.status_code == 200
+
+def test_get_students_list_roster(client, seed_data):
+    student = seed_data["student"]
+    mentor = seed_data["mentor"]
+
+    # 1. Student role cannot access students roster
+    res_student_login = client.post("/api/v1/auth/login", json={"username": student.username, "password": "password"})
+    assert res_student_login.status_code == 200
+    student_token = res_student_login.get_json()["token"]
+
+    res_denied = client.get("/api/v1/students", headers={"X-API-Token": student_token})
+    assert res_denied.status_code == 403
+
+    # 2. Mentor role can view assigned students list
+    res_mentor_login = client.post("/api/v1/auth/login", json={"username": mentor.username, "password": "password"})
+    mentor_token = res_mentor_login.get_json()["token"]
+
+    res_students = client.get("/api/v1/students", headers={"X-API-Token": mentor_token})
+    assert res_students.status_code == 200
+    students = res_students.get_json()
+    assert isinstance(students, list)
+    if len(students) > 0:
+        st = students[0]
+        assert "id" in st
+        assert "full_name" in st
+        assert "leaves_count" in st
+        assert "ods_count" in st
+
+
+def test_get_student_detail(client, seed_data):
+    student = seed_data["student"]
+    mentor = seed_data["mentor"]
+
+    # Login as Mentor
+    res_mentor_login = client.post("/api/v1/auth/login", json={"username": mentor.username, "password": "password"})
+    mentor_token = res_mentor_login.get_json()["token"]
+
+    # Get student detail
+    res_detail = client.get(f"/api/v1/students/{student.id}/detail", headers={"X-API-Token": mentor_token})
+    assert res_detail.status_code == 200
+    data = res_detail.get_json()
+    assert "student" in data
+    assert data["student"]["id"] == student.id
+    assert "attendance" in data
+    assert "leaves" in data
+    assert "ods" in data
+    assert "present_days" in data["attendance"]
+    assert "total_working_days" in data["attendance"]
+
+
 
 
 

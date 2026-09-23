@@ -10,3 +10,4 @@ export * from './ProfilePage';
 export * from './NotificationsPage';
 export * from './PendingApprovalsPage';
 export * from './AdminPage';
+export * from './StudentsListPage';

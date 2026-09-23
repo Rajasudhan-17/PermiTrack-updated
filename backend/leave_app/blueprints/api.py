@@ -387,6 +387,198 @@ def api_ods(current_user):
     return res
 
 
+@bp.route("/students", methods=["GET"])
+@token_required
+def api_students(current_user):
+    if current_user.role not in (Role.FACULTY.value, Role.MENTOR.value, Role.HOD.value, Role.ADMIN.value):
+        return jsonify({"message": "You are not authorized to view the students list."}), 403
+
+    from ..services.attendance import get_student_attendance_summary
+
+    if current_user.role == Role.HOD.value:
+        students = (
+            User.query.filter_by(_role=Role.STUDENT.value, department_id=current_user.department_id)
+            .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
+            .all()
+        )
+    elif current_user.role == Role.FACULTY.value:
+        from ..models import ClassGroup
+        classes = ClassGroup.query.filter_by(faculty_id=current_user.id).all()
+        class_ids = [cg.id for cg in classes]
+        students = (
+            User.query.filter(
+                User._role == Role.STUDENT.value,
+                (User.faculty_id == current_user.id) | (User.class_group_id.in_(class_ids) if class_ids else False)
+            )
+            .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
+            .all()
+        )
+    elif current_user.role == Role.MENTOR.value:
+        students = (
+            User.query.filter_by(_role=Role.STUDENT.value, mentor_id=current_user.id)
+            .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
+            .all()
+        )
+    else:  # ADMIN
+        students = (
+            User.query.filter_by(_role=Role.STUDENT.value)
+            .order_by(User.register_number.asc(), User.full_name.asc(), User.username.asc())
+            .all()
+        )
+
+    result = []
+    for s in students:
+        att_summary = get_student_attendance_summary(s.id)
+        leaves_count = Leave.query.filter_by(requested_by=s.id).count()
+        ods_count = (
+            OD.query.filter_by(requested_by=s.id).count()
+            + AttendanceRecord.query.filter(
+                AttendanceRecord.student_id == s.id,
+                AttendanceRecord.status == AttendanceStatus.OD.value,
+                AttendanceRecord.od_id.is_(None),
+            ).count()
+        )
+
+        class_label = (
+            f"Year {s.class_group.year} {s.class_group.section}"
+            if s.class_group
+            else "-"
+        )
+        dept_name = s.department.name if s.department else "-"
+
+        result.append(
+            {
+                "id": s.id,
+                "username": s.username,
+                "full_name": s.full_name or s.username,
+                "register_number": s.register_number or s.username,
+                "email": s.email,
+                "department": dept_name,
+                "class_group": class_label,
+                "attendance": {
+                    "total_working_days": att_summary["total"],
+                    "present_days": att_summary["present"],
+                    "absent_days": att_summary["absent"],
+                    "leave_days": att_summary["leave"],
+                    "od_days": att_summary["od"],
+                    "percentage": att_summary["percentage"],
+                },
+                "leaves_count": leaves_count,
+                "ods_count": ods_count,
+            }
+        )
+
+    res = jsonify(result)
+    res.headers["Cache-Control"] = "private, max-age=10"
+    return res
+
+
+@bp.route("/students/<int:student_id>/detail", methods=["GET"])
+@token_required
+def api_student_detail(current_user, student_id):
+    if current_user.role not in (Role.FACULTY.value, Role.MENTOR.value, Role.HOD.value, Role.ADMIN.value):
+        return jsonify({"message": "You are not authorized to view student details."}), 403
+
+    student = db.session.get(User, student_id)
+    if not student or student.db_role != Role.STUDENT.value:
+        return jsonify({"message": "Student not found."}), 404
+
+    from ..services.attendance import get_student_attendance_summary
+
+    att_summary = get_student_attendance_summary(student.id)
+
+    # Leaves history
+    leaves = Leave.query.filter_by(requested_by=student.id).order_by(Leave.applied_on.desc()).all()
+    leaves_list = []
+    for l in leaves:
+        leaves_list.append(
+            {
+                "id": l.id,
+                "start_date": l.start_date.strftime("%Y-%m-%d"),
+                "end_date": l.end_date.strftime("%Y-%m-%d"),
+                "is_emergency": l.is_emergency,
+                "status": l.status,
+                "reason": l.reason,
+                "applied_on": l.applied_on.strftime("%Y-%m-%d %H:%M"),
+                "review_comment": l.review_comment,
+            }
+        )
+
+    # ODs history
+    ods = OD.query.filter_by(requested_by=student.id).order_by(OD.applied_on.desc()).all()
+    ods_list = []
+    seen_dates = set()
+    for o in ods:
+        seen_dates.add(o.event_date)
+        ods_list.append(
+            {
+                "id": o.id,
+                "event_date": o.event_date.strftime("%Y-%m-%d"),
+                "status": o.status,
+                "reason": o.reason,
+                "applied_on": o.applied_on.strftime("%Y-%m-%d %H:%M"),
+                "review_comment": o.review_comment,
+            }
+        )
+
+    att_ods = AttendanceRecord.query.filter(
+        AttendanceRecord.student_id == student.id,
+        AttendanceRecord.status == AttendanceStatus.OD.value,
+        AttendanceRecord.od_id.is_(None),
+    ).all()
+    for att in att_ods:
+        if att.date not in seen_dates:
+            ods_list.append(
+                {
+                    "id": f"ATT-{att.id}",
+                    "event_date": att.date.strftime("%Y-%m-%d"),
+                    "status": RequestStatus.APPROVED.value,
+                    "reason": att.reason or "Faculty Marked On Duty Attendance",
+                    "applied_on": att.marked_on.strftime("%Y-%m-%d %H:%M") if att.marked_on else att.date.strftime("%Y-%m-%d 00:00"),
+                    "review_comment": "Recorded directly via Class Attendance",
+                }
+            )
+
+    mentor_name = student.mentor.full_name or student.mentor.username if student.mentor else "Not Assigned"
+    faculty_name = student.faculty.full_name or student.faculty.username if student.faculty else "Not Assigned"
+
+    class_label = (
+        f"Year {student.class_group.year} {student.class_group.section}"
+        if student.class_group
+        else "-"
+    )
+    dept_name = student.department.name if student.department else "-"
+
+    payload = {
+        "student": {
+            "id": student.id,
+            "full_name": student.full_name or student.username,
+            "username": student.username,
+            "register_number": student.register_number or student.username,
+            "email": student.email,
+            "department": dept_name,
+            "class_group": class_label,
+            "mentor_name": mentor_name,
+            "faculty_name": faculty_name,
+            "father_name": student.father_name,
+        },
+        "attendance": {
+            "total_working_days": att_summary["total"],
+            "present_days": att_summary["present"],
+            "absent_days": att_summary["absent"],
+            "leave_days": att_summary["leave"],
+            "od_days": att_summary["od"],
+            "percentage": att_summary["percentage"],
+        },
+        "leaves": leaves_list,
+        "ods": ods_list,
+    }
+
+    res = jsonify(payload)
+    res.headers["Cache-Control"] = "private, max-age=10"
+    return res
+
+
 @bp.route("/pending", methods=["GET"])
 @token_required
 def api_pending(current_user):
