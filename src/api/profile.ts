@@ -15,6 +15,19 @@ export interface ProfileData {
   date_of_birth?: string;
   class_group_name?: string;
   assigned_students_count?: number;
+  total_leaves?: number;
+  approved_leaves?: number;
+  total_ods?: number;
+  approved_ods?: number;
+  attendance?: {
+    percentage: number;
+    total_days: number;
+    present_days: number;
+    absent_days: number;
+    od_days: number;
+    leave_days: number;
+  };
+  pending_queue_count?: number;
 }
 
 export const profileApi = {

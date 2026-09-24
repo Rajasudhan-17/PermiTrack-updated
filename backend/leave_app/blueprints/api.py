@@ -975,21 +975,67 @@ def api_profile(current_user):
     except Exception:
         class_group_name = None
 
+    role_normalized = (getattr(current_user, "role", "student") or "student").lower()
+
+    # Calculate real student count matching api_students query logic
     assigned_students_count = 0
     try:
-        role_normalized = (getattr(current_user, "role", "student") or "student").lower()
-        if role_normalized == "mentor":
-            assigned_students_count = User.query.filter_by(mentor_id=current_user.id, _role=Role.STUDENT.value).count()
-        elif role_normalized == "faculty":
-            if getattr(current_user, "assigned_classes", None):
-                assigned_students_count = User.query.filter_by(class_group_id=current_user.assigned_classes.id, _role=Role.STUDENT.value).count()
-            else:
-                assigned_students_count = User.query.filter_by(faculty_id=current_user.id, _role=Role.STUDENT.value).count()
-        elif role_normalized == "hod":
+        if role_normalized == "hod":
             if current_user.department_id:
-                assigned_students_count = User.query.filter_by(department_id=current_user.department_id, _role=Role.STUDENT.value).count()
+                assigned_students_count = User.query.filter_by(_role=Role.STUDENT.value, department_id=current_user.department_id).count()
+            if assigned_students_count == 0:
+                assigned_students_count = User.query.filter_by(_role=Role.STUDENT.value).count()
+
+        elif role_normalized in ("faculty", "mentor"):
+            from ..models import ClassGroup
+            classes = ClassGroup.query.filter_by(faculty_id=current_user.id).all()
+            class_ids = [cg.id for cg in classes]
+
+            count = User.query.filter(
+                User._role == Role.STUDENT.value,
+                (
+                    (User.faculty_id == current_user.id)
+                    | (User.mentor_id == current_user.id)
+                    | (User.class_group_id.in_(class_ids) if class_ids else False)
+                )
+            ).count()
+
+            if count == 0 and current_user.department_id:
+                count = User.query.filter_by(_role=Role.STUDENT.value, department_id=current_user.department_id).count()
+
+            if count == 0:
+                count = User.query.filter_by(_role=Role.STUDENT.value).count()
+
+            assigned_students_count = count
+
+        elif role_normalized == "admin":
+            assigned_students_count = User.query.filter_by(_role=Role.STUDENT.value).count()
     except Exception:
         assigned_students_count = 0
+
+    # Real counts for user's own requests
+    total_leaves = Leave.query.filter_by(requested_by=current_user.id).count()
+    approved_leaves = Leave.query.filter_by(requested_by=current_user.id, status=RequestStatus.APPROVED.value).count()
+    total_ods = OD.query.filter_by(requested_by=current_user.id).count()
+    approved_ods = OD.query.filter_by(requested_by=current_user.id, status=RequestStatus.APPROVED.value).count()
+
+    # Attendance summary
+    att_summary = {"percentage": 100, "total_days": 0, "present_days": 0, "absent_days": 0, "od_days": 0, "leave_days": 0}
+    if role_normalized == "student":
+        try:
+            from ..services.attendance import get_student_attendance_summary
+            att_summary = get_student_attendance_summary(current_user.id)
+        except Exception:
+            pass
+
+    # Real pending queue count for approvals (for faculty, mentor, hod)
+    pending_queue_count = 0
+    if role_normalized in ("faculty", "mentor", "hod", "admin"):
+        try:
+            l_cnt, o_cnt = pending_counts_for_user(current_user)
+            pending_queue_count = l_cnt + o_cnt
+        except Exception:
+            pending_queue_count = 0
 
     return jsonify({
         "id": current_user.id,
@@ -1006,6 +1052,12 @@ def api_profile(current_user):
         "date_of_birth": dob_str or "Not specified",
         "class_group_name": class_group_name or "N/A",
         "assigned_students_count": assigned_students_count,
+        "total_leaves": total_leaves,
+        "approved_leaves": approved_leaves,
+        "total_ods": total_ods,
+        "approved_ods": approved_ods,
+        "attendance": att_summary,
+        "pending_queue_count": pending_queue_count,
     })
 
 

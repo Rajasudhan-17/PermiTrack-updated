@@ -17,9 +17,12 @@ import {
   FileSpreadsheet,
   CheckSquare,
   ShieldCheck,
-  BookOpen
+  BookOpen,
+  Clock,
+  TrendingUp,
+  FileCheck
 } from 'lucide-react';
-import { Card, PageHeader, Badge, Button, Input, Alert, Toast } from '../components/ui';
+import { Card, PageHeader, Badge, Button, Input, Alert, Toast, StatCard } from '../components/ui';
 import { profileApi, ProfileData } from '../api/profile';
 
 export const ProfilePage: React.FC = () => {
@@ -96,7 +99,7 @@ export const ProfilePage: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center space-y-3">
         <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto" />
-        <p className="text-xs text-text-muted font-medium">Fetching profile details...</p>
+        <p className="text-xs text-text-muted font-medium">Fetching real profile details & live counts...</p>
       </div>
     );
   }
@@ -116,6 +119,12 @@ export const ProfilePage: React.FC = () => {
     dob: profile?.date_of_birth || 'Not specified',
     classGroup: profile?.class_group_name || 'N/A',
     assignedCount: profile?.assigned_students_count || 0,
+    totalLeaves: profile?.total_leaves || 0,
+    approvedLeaves: profile?.approved_leaves || 0,
+    totalOds: profile?.total_ods || 0,
+    approvedOds: profile?.approved_ods || 0,
+    attendance: profile?.attendance || { percentage: 100, total_days: 0, present_days: 0, absent_days: 0, od_days: 0, leave_days: 0 },
+    pendingQueueCount: profile?.pending_queue_count || 0,
   };
 
   const getRoleTitle = () => {
@@ -163,7 +172,7 @@ export const ProfilePage: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title={getRoleTitle()}
-        subtitle="Manage your role-specific profile details, institutional affiliations, and security credentials."
+        subtitle="Manage your role-specific profile details, institutional affiliations, and live application metrics."
         badge={<Badge variant="primary">{getRoleBadgeText()}</Badge>}
       />
 
@@ -199,12 +208,57 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
+        {/* LIVE METRICS COUNTERS ROW */}
+        {roleNormalized === 'student' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard
+              label="Attendance"
+              value={`${profileDisplay.attendance.percentage}%`}
+              subtitle={`${profileDisplay.attendance.present_days}/${profileDisplay.attendance.total_days} Days Present`}
+              icon={<CheckCircle2 className={`w-4 h-4 ${profileDisplay.attendance.percentage >= 75 ? 'text-success' : 'text-danger'}`} />}
+            />
+            <StatCard
+              label="Leave Requests"
+              value={profileDisplay.totalLeaves}
+              subtitle={`${profileDisplay.approvedLeaves} Approved`}
+              icon={<FileSpreadsheet className="w-4 h-4 text-primary" />}
+            />
+            <StatCard
+              label="OD Requests"
+              value={profileDisplay.totalOds}
+              subtitle={`${profileDisplay.approvedOds} Approved`}
+              icon={<FileCheck className="w-4 h-4 text-info" />}
+            />
+            <StatCard
+              label="OD Credit Days"
+              value={profileDisplay.attendance.od_days}
+              subtitle="Attendance Credited"
+              icon={<Award className="w-4 h-4 text-warning" />}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatCard
+              label={roleNormalized === 'hod' ? 'Department Students' : roleNormalized === 'mentor' ? 'Assigned Mentees' : roleNormalized === 'admin' ? 'Total Students' : 'Class Cohort Size'}
+              value={profileDisplay.assignedCount}
+              subtitle="Active enrolled students"
+              icon={<Users className="w-5 h-5 text-primary" />}
+            />
+            <StatCard
+              label="Pending Approvals Queue"
+              value={profileDisplay.pendingQueueCount}
+              subtitle="Requests awaiting your review"
+              icon={<Clock className="w-5 h-5 text-warning" />}
+            />
+          </div>
+        )}
+
         {/* ROLE-SPECIFIC PROFILES */}
 
         {/* 1. STUDENT ROLE PROFILE */}
         {roleNormalized === 'student' && (
           <>
-            <div className="space-y-3">
+            <div className="space-y-3 pt-4 border-t border-border">
               <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
                 <GraduationCap className="w-4 h-4" /> Academic Registry Details
               </h3>
@@ -262,7 +316,7 @@ export const ProfilePage: React.FC = () => {
         {/* 2. FACULTY / CLASS ADVISOR ROLE PROFILE */}
         {roleNormalized === 'faculty' && (
           <>
-            <div className="space-y-3">
+            <div className="space-y-3 pt-4 border-t border-border">
               <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
                 <Briefcase className="w-4 h-4" /> Faculty & Class Advisor Registry
               </h3>
@@ -280,8 +334,8 @@ export const ProfilePage: React.FC = () => {
                   <span className="font-semibold text-text-primary text-sm">{profileDisplay.classGroup}</span>
                 </div>
                 <div className="p-3 bg-bg-secondary rounded-lg border border-border">
-                  <span className="text-text-muted block text-[11px]">Assigned Students Count:</span>
-                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Enrolled Students</span>
+                  <span className="text-text-muted block text-[11px]">Class Cohort Student Strength:</span>
+                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Active Students</span>
                 </div>
               </div>
             </div>
@@ -316,7 +370,7 @@ export const ProfilePage: React.FC = () => {
         {/* 3. MENTOR ROLE PROFILE */}
         {roleNormalized === 'mentor' && (
           <>
-            <div className="space-y-3">
+            <div className="space-y-3 pt-4 border-t border-border">
               <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
                 <Users className="w-4 h-4" /> Academic Mentor Registry
               </h3>
@@ -330,8 +384,8 @@ export const ProfilePage: React.FC = () => {
                   <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
                 </div>
                 <div className="p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
-                  <span className="text-text-muted block text-[11px]">Assigned Mentees Count:</span>
-                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Assigned Student Mentees</span>
+                  <span className="text-text-muted block text-[11px]">Assigned Student Mentees:</span>
+                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Mentees</span>
                 </div>
               </div>
             </div>
@@ -365,7 +419,7 @@ export const ProfilePage: React.FC = () => {
         {/* 4. HOD ROLE PROFILE */}
         {roleNormalized === 'hod' && (
           <>
-            <div className="space-y-3">
+            <div className="space-y-3 pt-4 border-t border-border">
               <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
                 <Building className="w-4 h-4" /> Head of Department Executive Registry
               </h3>
@@ -414,7 +468,7 @@ export const ProfilePage: React.FC = () => {
         {/* 5. ADMIN ROLE PROFILE */}
         {roleNormalized === 'admin' && (
           <>
-            <div className="space-y-3">
+            <div className="space-y-3 pt-4 border-t border-border">
               <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
                 <Shield className="w-4 h-4" /> System Administrator Registry
               </h3>
