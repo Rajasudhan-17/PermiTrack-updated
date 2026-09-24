@@ -130,6 +130,7 @@ class User(UserMixin, db.Model):
     is_blocked = db.Column(db.Boolean, default=False, nullable=False)
     api_token = db.Column(db.String(255), unique=True, nullable=True)
     token_expires_at = db.Column(db.DateTime, nullable=True)
+    notifications_read_at = db.Column(db.DateTime, nullable=True)
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -340,6 +341,7 @@ class AttendanceRecord(db.Model):
         db.CheckConstraint(f"status in ({ATTENDANCE_STATUS_SQL})", name="ck_attendance_status_valid"),
         db.Index("ix_attendance_class_date", "class_group_id", "date"),
         db.Index("ix_attendance_student_date", "student_id", "date"),
+        db.Index("ix_attendance_student_status", "student_id", "status"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

@@ -130,6 +130,7 @@ class User(UserMixin, db.Model):
     is_blocked = db.Column(db.Boolean, default=False, nullable=False)
     api_token = db.Column(db.String(255), unique=True, nullable=True)
     token_expires_at = db.Column(db.DateTime, nullable=True)
+    notifications_read_at = db.Column(db.DateTime, nullable=True)
 
     __mapper_args__ = {"version_id_col": version_id}
 

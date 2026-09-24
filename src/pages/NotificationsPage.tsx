@@ -97,11 +97,18 @@ export const NotificationsPage: React.FC = () => {
           {filteredNotifications.map((n) => (
             <div
               key={n.id}
-              className={`p-4 flex items-start gap-4 transition-colors ${
-                n.unread ? 'bg-primary-subtle/10' : 'hover:bg-surface-elevated/30'
+              onClick={() => {
+                if (n.link) {
+                  window.history.pushState({}, '', n.link);
+                  window.dispatchEvent(new Event('popstate'));
+                }
+              }}
+              className={`p-4 flex items-start gap-4 transition-colors cursor-pointer group ${
+                n.unread ? 'bg-primary-subtle/10 hover:bg-primary-subtle/20' : 'hover:bg-surface-elevated/40'
               }`}
+              title="Click to view associated request"
             >
-              <div className="p-2.5 rounded-lg bg-surface-elevated text-primary shrink-0 mt-0.5">
+              <div className="p-2.5 rounded-lg bg-surface-elevated text-primary shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
                 {n.type === 'leave' ? (
                   <Clock className="w-5 h-5 text-primary" />
                 ) : n.type === 'od' ? (
@@ -113,14 +120,14 @@ export const NotificationsPage: React.FC = () => {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm font-semibold text-text-primary">{n.title}</h4>
+                  <h4 className="text-sm font-semibold text-text-primary group-hover:text-primary transition-colors">{n.title}</h4>
                   <span className="text-xs text-text-muted shrink-0">{n.timestamp}</span>
                 </div>
                 <p className="text-xs text-text-secondary leading-relaxed mt-1">{n.message}</p>
                 {n.link && (
-                  <a href={n.link} className="inline-block text-xs font-semibold text-primary hover:underline mt-2">
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary group-hover:underline mt-2">
                     View Associated Request &rarr;
-                  </a>
+                  </span>
                 )}
               </div>
             </div>

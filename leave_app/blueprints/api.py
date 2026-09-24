@@ -1607,13 +1607,20 @@ def api_admin_audit_logs(current_user):
 @bp.route("/notifications", methods=["GET"])
 @token_required
 def api_notifications(current_user):
-    from ..models import AuditLog, Leave, OD, RequestStatus, AttendanceRecord, AttendanceStatus
+    from ..models import AuditLog, Leave, OD, RequestStatus
     notifications = []
+    read_at = current_user.notifications_read_at
+
+    def is_unread(dt):
+        if not dt:
+            return False
+        if not read_at:
+            return True
+        return dt > read_at
 
     # 1. FOR ALL USERS (especially Students): Leaves applied by user
     user_leaves = Leave.query.filter_by(requested_by=current_user.id).order_by(Leave.applied_on.desc()).limit(15).all()
     for l in user_leaves:
-        is_approved_or_rejected = l.status in (RequestStatus.APPROVED.value, RequestStatus.REJECTED.value)
         status_text = "approved" if l.status == RequestStatus.APPROVED.value else "rejected" if l.status == RequestStatus.REJECTED.value else f"status updated to {l.status}"
         
         notifications.append({
@@ -1622,14 +1629,13 @@ def api_notifications(current_user):
             "message": f"Your leave request for {l.start_date.strftime('%Y-%m-%d')} to {l.end_date.strftime('%Y-%m-%d')} has been {status_text}.",
             "time": l.applied_on.strftime("%Y-%m-%d %H:%M"),
             "type": "leave",
-            "unread": is_approved_or_rejected,
+            "unread": is_unread(l.applied_on),
             "link": "/my-leaves"
         })
 
     # 2. FOR ALL USERS (especially Students): ODs applied by user
     user_ods = OD.query.filter_by(requested_by=current_user.id).order_by(OD.applied_on.desc()).limit(15).all()
     for o in user_ods:
-        is_approved_or_rejected = o.status in (RequestStatus.APPROVED.value, RequestStatus.REJECTED.value)
         status_text = "approved" if o.status == RequestStatus.APPROVED.value else "rejected" if o.status == RequestStatus.REJECTED.value else f"status updated to {o.status}"
 
         notifications.append({
@@ -1638,7 +1644,7 @@ def api_notifications(current_user):
             "message": f"Your OD request for {o.event_date.strftime('%Y-%m-%d')} has been {status_text}.",
             "time": o.applied_on.strftime("%Y-%m-%d %H:%M"),
             "type": "od",
-            "unread": is_approved_or_rejected,
+            "unread": is_unread(o.applied_on),
             "link": "/my-ods"
         })
 
@@ -1700,7 +1706,7 @@ def api_notifications(current_user):
                 "message": f"Student {applicant_name} submitted a leave request for {l.start_date.strftime('%Y-%m-%d')} awaiting your review.",
                 "time": l.applied_on.strftime("%Y-%m-%d %H:%M"),
                 "type": "leave",
-                "unread": True,
+                "unread": is_unread(l.applied_on),
                 "link": "/pending-leaves"
             })
 
@@ -1712,7 +1718,7 @@ def api_notifications(current_user):
                 "message": f"Student {applicant_name} submitted an OD request for {o.event_date.strftime('%Y-%m-%d')} awaiting your review.",
                 "time": o.applied_on.strftime("%Y-%m-%d %H:%M"),
                 "type": "od",
-                "unread": True,
+                "unread": is_unread(o.applied_on),
                 "link": "/pending-ods"
             })
 
@@ -1728,7 +1734,7 @@ def api_notifications(current_user):
             "message": log.details or log.action,
             "time": log.timestamp.strftime("%Y-%m-%d %H:%M"),
             "type": "system",
-            "unread": False,
+            "unread": is_unread(log.timestamp),
             "link": "/profile"
         })
 
@@ -1739,6 +1745,8 @@ def api_notifications(current_user):
 @bp.route("/notifications/mark_read", methods=["POST"])
 @token_required
 def api_notifications_mark_read(current_user):
+    current_user.notifications_read_at = utcnow()
+    db.session.commit()
     return jsonify({"message": "Notifications marked as read"})
 
 
