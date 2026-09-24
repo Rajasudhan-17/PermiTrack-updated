@@ -52,7 +52,7 @@ export const PendingApprovalsPage: React.FC = () => {
         const leavesMapped: PendingItem[] = (data.pending_leaves || []).map((l: any) => ({
           id: `L-${l.id}`,
           rawId: l.id,
-          applicantId: l.applicant_id,
+          applicantId: l.applicant_id || l.student_id || l.requested_by || l.user_id,
           applicantName: l.applicant_name || l.applicant,
           rollNumber: l.applicant,
           type: 'leave',
@@ -70,7 +70,7 @@ export const PendingApprovalsPage: React.FC = () => {
         const odsMapped: PendingItem[] = (data.pending_ods || []).map((o: any) => ({
           id: `OD-${o.id}`,
           rawId: o.id,
-          applicantId: o.applicant_id,
+          applicantId: o.applicant_id || o.student_id || o.requested_by || o.user_id,
           applicantName: o.applicant_name || o.applicant,
           rollNumber: o.applicant,
           type: 'od',
@@ -209,6 +209,18 @@ export const PendingApprovalsPage: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-border/50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<User className="w-4 h-4 text-primary" />}
+                  onClick={() => {
+                    if (item.applicantId) {
+                      setViewingStudentId(item.applicantId);
+                    }
+                  }}
+                >
+                  View Student Profile
+                </Button>
                 {item.hasProof && item.proofUrl && (
                   <Button
                     variant="outline"

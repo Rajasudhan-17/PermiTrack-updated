@@ -658,6 +658,8 @@ def api_pending(current_user):
         leave_data.append({
             "id": l.id,
             "applicant_id": l.requested_by,
+            "student_id": l.requested_by,
+            "requested_by": l.requested_by,
             "applicant": l.applicant.username,
             "applicant_name": l.applicant.full_name or l.applicant.username,
             "start_date": l.start_date.strftime("%Y-%m-%d"),
@@ -679,6 +681,8 @@ def api_pending(current_user):
         od_data.append({
             "id": o.id,
             "applicant_id": o.requested_by,
+            "student_id": o.requested_by,
+            "requested_by": o.requested_by,
             "applicant": o.applicant.username,
             "applicant_name": o.applicant.full_name or o.applicant.username,
             "event_date": o.event_date.strftime("%Y-%m-%d"),
@@ -1603,35 +1607,120 @@ def api_admin_audit_logs(current_user):
 @bp.route("/notifications", methods=["GET"])
 @token_required
 def api_notifications(current_user):
-    from ..models import AuditLog, Leave, OD
+    from ..models import AuditLog, Leave, OD, RequestStatus, AttendanceRecord, AttendanceStatus
     notifications = []
 
-    user_leaves = Leave.query.filter_by(requested_by=current_user.id).order_by(Leave.applied_on.desc()).limit(10).all()
+    # 1. FOR ALL USERS (especially Students): Leaves applied by user
+    user_leaves = Leave.query.filter_by(requested_by=current_user.id).order_by(Leave.applied_on.desc()).limit(15).all()
     for l in user_leaves:
+        is_approved_or_rejected = l.status in (RequestStatus.APPROVED.value, RequestStatus.REJECTED.value)
+        status_text = "approved" if l.status == RequestStatus.APPROVED.value else "rejected" if l.status == RequestStatus.REJECTED.value else f"status updated to {l.status}"
+        
         notifications.append({
             "id": f"leave-{l.id}",
             "title": f"Leave Request #{l.id} ({l.status})",
-            "message": f"Your leave request for {l.start_date.strftime('%Y-%m-%d')} to {l.end_date.strftime('%Y-%m-%d')} is {l.status.lower()}.",
+            "message": f"Your leave request for {l.start_date.strftime('%Y-%m-%d')} to {l.end_date.strftime('%Y-%m-%d')} has been {status_text}.",
             "time": l.applied_on.strftime("%Y-%m-%d %H:%M"),
             "type": "leave",
-            "unread": l.status == "PENDING",
+            "unread": is_approved_or_rejected,
+            "link": "/my-leaves"
         })
 
-    user_ods = OD.query.filter_by(requested_by=current_user.id).order_by(OD.applied_on.desc()).limit(10).all()
+    # 2. FOR ALL USERS (especially Students): ODs applied by user
+    user_ods = OD.query.filter_by(requested_by=current_user.id).order_by(OD.applied_on.desc()).limit(15).all()
     for o in user_ods:
+        is_approved_or_rejected = o.status in (RequestStatus.APPROVED.value, RequestStatus.REJECTED.value)
+        status_text = "approved" if o.status == RequestStatus.APPROVED.value else "rejected" if o.status == RequestStatus.REJECTED.value else f"status updated to {o.status}"
+
         notifications.append({
             "id": f"od-{o.id}",
             "title": f"OD Request #{o.id} ({o.status})",
-            "message": f"Your OD request for {o.event_date.strftime('%Y-%m-%d')} is {o.status.lower()}.",
+            "message": f"Your OD request for {o.event_date.strftime('%Y-%m-%d')} has been {status_text}.",
             "time": o.applied_on.strftime("%Y-%m-%d %H:%M"),
             "type": "od",
-            "unread": o.status == "PENDING",
+            "unread": is_approved_or_rejected,
+            "link": "/my-ods"
         })
 
+    # 3. FOR APPROVERS (Faculty / Mentor / HOD / Event Coordinator / Admin): Pending Queue Notifications
+    if current_user.role in (Role.FACULTY.value, Role.MENTOR.value, Role.HOD.value, Role.EVENT_COORDINATOR.value, Role.ADMIN.value):
+        pending_leaves = []
+        pending_ods = []
+
+        if current_user.role == Role.EVENT_COORDINATOR.value:
+            pending_ods = OD.query.filter(
+                (OD.event_coordinator_id == current_user.id) | (OD.event_coordinator_id.is_(None)),
+                OD.status == RequestStatus.PENDING.value
+            ).order_by(OD.applied_on.desc()).limit(10).all()
+        elif current_user.role == Role.MENTOR.value:
+            pending_leaves = Leave.query.join(User, User.id == Leave.requested_by).filter(
+                User.mentor_id == current_user.id, Leave.status == RequestStatus.PENDING.value
+            ).order_by(Leave.applied_on.desc()).limit(10).all()
+
+            pending_ods = OD.query.join(User, User.id == OD.requested_by).filter(
+                User.mentor_id == current_user.id,
+                OD.status.in_([RequestStatus.PENDING.value, RequestStatus.EVENT_COORDINATOR_APPROVED.value])
+            ).order_by(OD.applied_on.desc()).limit(10).all()
+        elif current_user.role == Role.FACULTY.value:
+            from ..models import ClassGroup
+            classes = ClassGroup.query.filter_by(faculty_id=current_user.id).all()
+            class_ids = [cg.id for cg in classes]
+            pending_leaves = Leave.query.join(User, User.id == Leave.requested_by).filter(
+                (User.faculty_id == current_user.id) | (User.class_group_id.in_(class_ids) if class_ids else False),
+                Leave.status == RequestStatus.MENTOR_APPROVED.value
+            ).order_by(Leave.applied_on.desc()).limit(10).all()
+
+            pending_ods = OD.query.join(User, User.id == OD.requested_by).filter(
+                (OD.faculty_id == current_user.id) | (User.faculty_id == current_user.id) | (User.class_group_id.in_(class_ids) if class_ids else False),
+                OD.status == RequestStatus.MENTOR_APPROVED.value
+            ).order_by(OD.applied_on.desc()).limit(10).all()
+        elif current_user.role == Role.HOD.value:
+            from ..models import Department
+            depts = Department.query.filter_by(hod_id=current_user.id).all()
+            dept_ids = [d.id for d in depts]
+            if current_user.department_id and current_user.department_id not in dept_ids:
+                dept_ids.append(current_user.department_id)
+
+            pending_leaves = Leave.query.join(User, User.id == Leave.requested_by).filter(
+                User.department_id.in_(dept_ids), Leave.status == RequestStatus.FACULTY_APPROVED.value
+            ).order_by(Leave.applied_on.desc()).limit(10).all()
+
+            pending_ods = OD.query.join(User, User.id == OD.requested_by).filter(
+                User.department_id.in_(dept_ids), OD.status == RequestStatus.FACULTY_APPROVED.value
+            ).order_by(OD.applied_on.desc()).limit(10).all()
+        elif current_user.role == Role.ADMIN.value:
+            pending_leaves = Leave.query.filter(Leave.status != RequestStatus.APPROVED.value, Leave.status != RequestStatus.REJECTED.value).order_by(Leave.applied_on.desc()).limit(10).all()
+            pending_ods = OD.query.filter(OD.status != RequestStatus.APPROVED.value, OD.status != RequestStatus.REJECTED.value).order_by(OD.applied_on.desc()).limit(10).all()
+
+        for l in pending_leaves:
+            applicant_name = l.applicant.full_name or l.applicant.username
+            notifications.append({
+                "id": f"pending-leave-{l.id}",
+                "title": f"Action Required: Leave Request from {applicant_name}",
+                "message": f"Student {applicant_name} submitted a leave request for {l.start_date.strftime('%Y-%m-%d')} awaiting your review.",
+                "time": l.applied_on.strftime("%Y-%m-%d %H:%M"),
+                "type": "leave",
+                "unread": True,
+                "link": "/pending-leaves"
+            })
+
+        for o in pending_ods:
+            applicant_name = o.applicant.full_name or o.applicant.username
+            notifications.append({
+                "id": f"pending-od-{o.id}",
+                "title": f"Action Required: On Duty Request from {applicant_name}",
+                "message": f"Student {applicant_name} submitted an OD request for {o.event_date.strftime('%Y-%m-%d')} awaiting your review.",
+                "time": o.applied_on.strftime("%Y-%m-%d %H:%M"),
+                "type": "od",
+                "unread": True,
+                "link": "/pending-ods"
+            })
+
+    # 4. Audit Log Notifications for User
     audit_logs = AuditLog.query.filter(
         (AuditLog.actor_id == current_user.id) |
         ((AuditLog.target_type == "User") & (AuditLog.target_id == current_user.id))
-    ).order_by(AuditLog.timestamp.desc()).limit(10).all()
+    ).order_by(AuditLog.timestamp.desc()).limit(5).all()
     for log in audit_logs:
         notifications.append({
             "id": f"audit-{log.id}",
@@ -1640,6 +1729,7 @@ def api_notifications(current_user):
             "time": log.timestamp.strftime("%Y-%m-%d %H:%M"),
             "type": "system",
             "unread": False,
+            "link": "/profile"
         })
 
     notifications.sort(key=lambda x: x["time"], reverse=True)
