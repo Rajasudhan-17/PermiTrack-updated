@@ -80,13 +80,30 @@ def create_app(test_config=None):
     register_template_helpers(app)
     register_legacy_routes(app)
     register_commands(app)
-    # Automatically create missing database tables on startup using DATABASE_URL
+    # Automatically create missing database tables and auto-migrate missing columns on startup
     with app.app_context():
         if app.config.get("AUTO_CREATE_TABLES", True) and not app.config.get("TESTING"):
             try:
                 db.create_all()
+                from sqlalchemy import inspect, text
+                inspector = inspect(db.engine)
+                tables = inspector.get_table_names()
+                if "user" in tables:
+                    cols = {c["name"] for c in inspector.get_columns("user")}
+                    with db.engine.connect() as conn:
+                        if "notifications_read_at" not in cols:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN notifications_read_at TIMESTAMP NULL;'))
+                        if "api_token" not in cols:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN api_token VARCHAR(255) NULL;'))
+                        if "token_expires_at" not in cols:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN token_expires_at TIMESTAMP NULL;'))
+                        if "is_blocked" not in cols:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN is_blocked BOOLEAN NOT NULL DEFAULT FALSE;'))
+                        if "version_id" not in cols:
+                            conn.execute(text('ALTER TABLE "user" ADD COLUMN version_id INTEGER NOT NULL DEFAULT 1;'))
+                        conn.commit()
             except Exception as exc:
-                app.logger.warning("Automatic table creation on startup failed or skipped: %s", exc)
+                app.logger.warning("Automatic table creation / schema migration on startup failed or skipped: %s", exc)
 
     register_scheduler(app)
     return app
