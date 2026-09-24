@@ -18,7 +18,10 @@ import {
   NotificationsPage,
   PendingApprovalsPage,
   AdminPage,
-  StudentsListPage
+  StudentsListPage,
+  FacultyDashboard,
+  MentorDashboard,
+  HodDashboard
 } from './pages';
 
 type RoleType = 'student' | 'faculty' | 'mentor' | 'hod' | 'admin';
@@ -148,13 +151,32 @@ export function App() {
           );
         }
         return <FacultyAttendancePage />;
+      case '/students':
+        if (userRole !== 'faculty' && userRole !== 'mentor' && userRole !== 'hod' && userRole !== 'admin') {
+          return (
+            <div className="max-w-2xl mx-auto py-12 space-y-4">
+              <Alert type="danger" title="403 Forbidden: Access Restricted">
+                Student directory access is restricted to Faculty, Mentor, HOD, and Administrator accounts.
+              </Alert>
+              <Card className="p-8 text-center space-y-4">
+                <ShieldAlert className="w-12 h-12 text-danger mx-auto" />
+                <h3 className="text-lg font-bold text-text-primary">Unauthorized Page Access</h3>
+                <Button variant="primary" onClick={() => navigate('/')}>
+                  Return to Main Dashboard
+                </Button>
+              </Card>
+            </div>
+          );
+        }
+        return <StudentsListPage />;
       case '/profile':
         return <ProfilePage />;
       case '/notifications':
         return <NotificationsPage />;
       case '/pending-leaves':
+        return <PendingApprovalsPage initialTab="leaves" />;
       case '/pending-ods':
-        return <PendingApprovalsPage />;
+        return <PendingApprovalsPage initialTab="ods" />;
       case '/admin':
       case '/admin/assign-mentor':
       case '/admin/create-user':
@@ -182,8 +204,14 @@ export function App() {
         if (userRole === 'admin') {
           return <AdminPage />;
         }
-        if (userRole === 'faculty' || userRole === 'mentor' || userRole === 'hod') {
-          return <PendingApprovalsPage />;
+        if (userRole === 'faculty') {
+          return <FacultyDashboard onNavigate={navigate} />;
+        }
+        if (userRole === 'mentor') {
+          return <MentorDashboard onNavigate={navigate} />;
+        }
+        if (userRole === 'hod') {
+          return <HodDashboard onNavigate={navigate} />;
         }
         return (
           <StudentDashboard

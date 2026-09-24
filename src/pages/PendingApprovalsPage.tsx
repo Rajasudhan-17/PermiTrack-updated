@@ -34,8 +34,18 @@ export interface PendingItem {
   proofUrl?: string | null;
 }
 
-export const PendingApprovalsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'leaves' | 'ods'>('leaves');
+export interface PendingApprovalsPageProps {
+  initialTab?: 'leaves' | 'ods';
+}
+
+export const PendingApprovalsPage: React.FC<PendingApprovalsPageProps> = ({ initialTab = 'leaves' }) => {
+  const [activeTab, setActiveTab] = useState<'leaves' | 'ods'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [selectedItem, setSelectedItem] = useState<PendingItem | null>(null);
   const [reviewAction, setReviewAction] = useState<'APPROVE' | 'REJECT' | null>(null);
   const [reviewComment, setReviewComment] = useState('');

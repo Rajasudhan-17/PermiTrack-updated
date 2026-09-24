@@ -18,7 +18,10 @@ import {
   NotificationsPage,
   PendingApprovalsPage,
   AdminPage,
-  StudentsListPage
+  StudentsListPage,
+  FacultyDashboard,
+  MentorDashboard,
+  HodDashboard
 } from './pages';
 
 type RoleType = 'student' | 'faculty' | 'mentor' | 'hod' | 'admin';
@@ -171,8 +174,9 @@ export function App() {
       case '/notifications':
         return <NotificationsPage />;
       case '/pending-leaves':
+        return <PendingApprovalsPage initialTab="leaves" />;
       case '/pending-ods':
-        return <PendingApprovalsPage />;
+        return <PendingApprovalsPage initialTab="ods" />;
       case '/admin':
       case '/admin/assign-mentor':
       case '/admin/create-user':
@@ -200,8 +204,14 @@ export function App() {
         if (userRole === 'admin') {
           return <AdminPage />;
         }
-        if (userRole === 'faculty' || userRole === 'mentor' || userRole === 'hod') {
-          return <PendingApprovalsPage />;
+        if (userRole === 'faculty') {
+          return <FacultyDashboard onNavigate={navigate} />;
+        }
+        if (userRole === 'mentor') {
+          return <MentorDashboard onNavigate={navigate} />;
+        }
+        if (userRole === 'hod') {
+          return <HodDashboard onNavigate={navigate} />;
         }
         return (
           <StudentDashboard
