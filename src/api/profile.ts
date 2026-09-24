@@ -13,6 +13,8 @@ export interface ProfileData {
   faculty_advisor?: string;
   father_name?: string;
   date_of_birth?: string;
+  class_group_name?: string;
+  assigned_students_count?: number;
 }
 
 export const profileApi = {

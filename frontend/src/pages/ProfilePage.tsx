@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Shield, KeyRound, CheckCircle2, AlertCircle, Loader2, Award, Calendar, UserCheck } from 'lucide-react';
+import { 
+  User, 
+  Mail, 
+  Shield, 
+  KeyRound, 
+  CheckCircle2, 
+  AlertCircle, 
+  Loader2, 
+  Award, 
+  Calendar, 
+  UserCheck,
+  Building,
+  GraduationCap,
+  Users,
+  Briefcase,
+  FileSpreadsheet,
+  CheckSquare,
+  ShieldCheck,
+  BookOpen
+} from 'lucide-react';
 import { Card, PageHeader, Badge, Button, Input, Alert, Toast } from '../components/ui';
 import { profileApi, ProfileData } from '../api/profile';
 
@@ -82,17 +101,51 @@ export const ProfilePage: React.FC = () => {
     );
   }
 
+  const roleNormalized = (profile?.role || 'student').toLowerCase();
+
   const profileDisplay = {
     fullName: profile?.full_name || profile?.username || 'User Account',
     username: profile?.username || 'user',
-    email: profile?.email || 'N/A',
+    email: profile?.email || `${profile?.username || 'user'}@permitrack.edu`,
     rollNumber: profile?.roll_number || profile?.username || 'N/A',
-    role: (profile?.role || 'user').toUpperCase(),
+    role: (profile?.role || 'student').toUpperCase(),
     department: profile?.department || 'General Department',
     mentorName: profile?.mentor_name || 'Not assigned',
     facultyAdvisor: profile?.faculty_advisor || 'Not assigned',
     fatherName: profile?.father_name || 'Not specified',
     dob: profile?.date_of_birth || 'Not specified',
+    classGroup: profile?.class_group_name || 'N/A',
+    assignedCount: profile?.assigned_students_count || 0,
+  };
+
+  const getRoleTitle = () => {
+    switch (roleNormalized) {
+      case 'faculty':
+        return 'Class Advisor & Faculty Profile';
+      case 'mentor':
+        return 'Student Mentor Profile';
+      case 'hod':
+        return 'Head of Department Profile';
+      case 'admin':
+        return 'System Administrator Profile';
+      default:
+        return 'Student Profile & Academic Record';
+    }
+  };
+
+  const getRoleBadgeText = () => {
+    switch (roleNormalized) {
+      case 'faculty':
+        return 'Faculty Advisor';
+      case 'mentor':
+        return 'Student Mentor';
+      case 'hod':
+        return 'Head of Department (HOD)';
+      case 'admin':
+        return 'Super Admin';
+      default:
+        return 'Enrolled Student';
+    }
   };
 
   return (
@@ -109,9 +162,9 @@ export const ProfilePage: React.FC = () => {
 
       {/* Page Header */}
       <PageHeader
-        title="User Profile & Account Security"
-        subtitle="Manage your personal profile details, academic assignments, and security credentials."
-        badge={<Badge variant="primary">{profileDisplay.role}</Badge>}
+        title={getRoleTitle()}
+        subtitle="Manage your role-specific profile details, institutional affiliations, and security credentials."
+        badge={<Badge variant="primary">{getRoleBadgeText()}</Badge>}
       />
 
       {error && (
@@ -136,63 +189,273 @@ export const ProfilePage: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-text-primary font-display">{profileDisplay.fullName}</h2>
-            <p className="text-xs text-text-muted mt-0.5">@{profileDisplay.username} • Roll/Reg No: {profileDisplay.rollNumber}</p>
+            <p className="text-xs text-text-muted mt-0.5">
+              @{profileDisplay.username} • {roleNormalized === 'student' ? `Roll No: ${profileDisplay.rollNumber}` : `Staff ID: ${profileDisplay.rollNumber}`}
+            </p>
             <div className="mt-2 flex items-center gap-2">
               <Badge variant="primary" size="sm">{profileDisplay.department}</Badge>
+              <Badge variant="secondary" size="sm">{getRoleBadgeText()}</Badge>
             </div>
           </div>
         </div>
 
-        {/* Academic Details Section */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary">
-            Academic Registry Details
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="p-3 bg-bg-secondary rounded-lg border border-border">
-              <span className="text-text-muted block text-[11px]">Department / Specialization:</span>
-              <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
-            </div>
-            <div className="p-3 bg-bg-secondary rounded-lg border border-border">
-              <span className="text-text-muted block text-[11px]">Assigned Student Mentor:</span>
-              <span className="font-semibold text-text-primary text-sm">{profileDisplay.mentorName}</span>
-            </div>
-            <div className="p-3 bg-bg-secondary rounded-lg border border-border">
-              <span className="text-text-muted block text-[11px]">Class Faculty Advisor:</span>
-              <span className="font-semibold text-text-primary text-sm">{profileDisplay.facultyAdvisor}</span>
-            </div>
-          </div>
-        </div>
+        {/* ROLE-SPECIFIC PROFILES */}
 
-        {/* Identity & Personal Info */}
-        <div className="space-y-3 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary">
-            Personal Information
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border">
-              <User className="w-4 h-4 text-text-muted shrink-0" />
-              <div>
-                <span className="text-text-muted block text-[11px]">Father's Name:</span>
-                <span className="font-semibold text-text-primary">{profileDisplay.fatherName}</span>
+        {/* 1. STUDENT ROLE PROFILE */}
+        {roleNormalized === 'student' && (
+          <>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <GraduationCap className="w-4 h-4" /> Academic Registry Details
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Department / Specialization:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Class Section Cohort:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.classGroup}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Assigned Student Mentor:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.mentorName}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Class Faculty Advisor:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.facultyAdvisor}</span>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border">
-              <Calendar className="w-4 h-4 text-text-muted shrink-0" />
-              <div>
-                <span className="text-text-muted block text-[11px]">Date of Birth:</span>
-                <span className="font-semibold text-text-primary">{profileDisplay.dob}</span>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <User className="w-4 h-4" /> Personal Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border">
+                  <User className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Father's Name:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.fatherName}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border">
+                  <Calendar className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Date of Birth:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.dob}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <Mail className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Registered Student Email:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.email}</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
-              <Mail className="w-4 h-4 text-text-muted shrink-0" />
-              <div>
-                <span className="text-text-muted block text-[11px]">Registered Email:</span>
-                <span className="font-semibold text-text-primary">{profileDisplay.email}</span>
+          </>
+        )}
+
+        {/* 2. FACULTY / CLASS ADVISOR ROLE PROFILE */}
+        {roleNormalized === 'faculty' && (
+          <>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <Briefcase className="w-4 h-4" /> Faculty & Class Advisor Registry
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Official Designation:</span>
+                  <span className="font-semibold text-text-primary text-sm">Class Advisor & Course Faculty</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Academic Department:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Assigned Class Cohort:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.classGroup}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Assigned Students Count:</span>
+                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Enrolled Students</span>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Institutional Credentials & Permissions
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <Mail className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Official Institutional Email:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-surface-elevated/40 rounded-lg border border-border space-y-2">
+                <span className="text-xs font-bold text-text-primary block">Faculty Access & System Capabilities:</span>
+                <ul className="text-xs text-text-muted space-y-1 list-disc list-inside">
+                  <li>Mark daily attendance for assigned class cohort.</li>
+                  <li>Review and approve/reject student leave & OD requests.</li>
+                  <li>Monitor class attendance shortage risk (&lt;75%).</li>
+                  <li>View complete student academic roster and profile histories.</li>
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 3. MENTOR ROLE PROFILE */}
+        {roleNormalized === 'mentor' && (
+          <>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <Users className="w-4 h-4" /> Academic Mentor Registry
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Role Title:</span>
+                  <span className="font-semibold text-text-primary text-sm">Student Academic Mentor</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Department:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <span className="text-text-muted block text-[11px]">Assigned Mentees Count:</span>
+                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Assigned Student Mentees</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Mentorship Credentials & Authority
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <Mail className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Official Mentor Email:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-surface-elevated/40 rounded-lg border border-border space-y-2">
+                <span className="text-xs font-bold text-text-primary block">Mentor System Capabilities:</span>
+                <ul className="text-xs text-text-muted space-y-1 list-disc list-inside">
+                  <li>First-stage approval review for assigned mentees' leave and OD applications.</li>
+                  <li>Monitor mentee attendance standing and shortage alerts.</li>
+                  <li>Inspect assigned mentee profiles and historical request logs.</li>
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 4. HOD ROLE PROFILE */}
+        {roleNormalized === 'hod' && (
+          <>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <Building className="w-4 h-4" /> Head of Department Executive Registry
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Executive Role:</span>
+                  <span className="font-semibold text-text-primary text-sm">Head of Department (HOD)</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Department Jurisdiction:</span>
+                  <span className="font-semibold text-text-primary text-sm">{profileDisplay.department}</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <span className="text-text-muted block text-[11px]">Department Total Enrolled Students:</span>
+                  <span className="font-semibold text-primary text-sm">{profileDisplay.assignedCount} Department Students</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Executive Credentials & Authorities
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <Mail className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Official HOD Email:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-surface-elevated/40 rounded-lg border border-border space-y-2">
+                <span className="text-xs font-bold text-text-primary block">HOD Executive Capabilities:</span>
+                <ul className="text-xs text-text-muted space-y-1 list-disc list-inside">
+                  <li>Final approval sign-off on faculty-approved leave and OD applications.</li>
+                  <li>Department-wide student attendance analytics and shortage monitoring.</li>
+                  <li>Full oversight of department faculty, mentors, and student rosters.</li>
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 5. ADMIN ROLE PROFILE */}
+        {roleNormalized === 'admin' && (
+          <>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <Shield className="w-4 h-4" /> System Administrator Registry
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">System Administrative Tier:</span>
+                  <span className="font-semibold text-text-primary text-sm">Super System Administrator</span>
+                </div>
+                <div className="p-3 bg-bg-secondary rounded-lg border border-border">
+                  <span className="text-text-muted block text-[11px]">Platform Scope:</span>
+                  <span className="font-semibold text-text-primary text-sm">Global System Configuration</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider text-primary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Administrative Credentials
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border sm:col-span-2">
+                  <Mail className="w-4 h-4 text-text-muted shrink-0" />
+                  <div>
+                    <span className="text-text-muted block text-[11px]">Administrator Email:</span>
+                    <span className="font-semibold text-text-primary">{profileDisplay.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-surface-elevated/40 rounded-lg border border-border space-y-2">
+                <span className="text-xs font-bold text-text-primary block">Admin Capabilities:</span>
+                <ul className="text-xs text-text-muted space-y-1 list-disc list-inside">
+                  <li>User account creation, role updates, and password resets.</li>
+                  <li>Mentor to student assignment management.</li>
+                  <li>Class group and department registry configuration.</li>
+                  <li>System audit log inspection.</li>
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
       </Card>
 
       {/* Security & Password Management Card */}

@@ -964,6 +964,33 @@ def api_profile(current_user):
     except Exception:
         dob_str = None
 
+    class_group_name = None
+    try:
+        if getattr(current_user, "class_group", None):
+            cg = current_user.class_group
+            class_group_name = f"Year {cg.year} - Sec {cg.section}"
+        elif getattr(current_user, "assigned_classes", None):
+            ac = current_user.assigned_classes
+            class_group_name = f"Year {ac.year} - Sec {ac.section}"
+    except Exception:
+        class_group_name = None
+
+    assigned_students_count = 0
+    try:
+        role_normalized = (getattr(current_user, "role", "student") or "student").lower()
+        if role_normalized == "mentor":
+            assigned_students_count = User.query.filter_by(mentor_id=current_user.id, _role=Role.STUDENT.value).count()
+        elif role_normalized == "faculty":
+            if getattr(current_user, "assigned_classes", None):
+                assigned_students_count = User.query.filter_by(class_group_id=current_user.assigned_classes.id, _role=Role.STUDENT.value).count()
+            else:
+                assigned_students_count = User.query.filter_by(faculty_id=current_user.id, _role=Role.STUDENT.value).count()
+        elif role_normalized == "hod":
+            if current_user.department_id:
+                assigned_students_count = User.query.filter_by(department_id=current_user.department_id, _role=Role.STUDENT.value).count()
+    except Exception:
+        assigned_students_count = 0
+
     return jsonify({
         "id": current_user.id,
         "username": current_user.username or "",
@@ -977,6 +1004,8 @@ def api_profile(current_user):
         "roll_number": getattr(current_user, "register_number", None) or current_user.username or "N/A",
         "father_name": getattr(current_user, "father_name", None) or "Not specified",
         "date_of_birth": dob_str or "Not specified",
+        "class_group_name": class_group_name or "N/A",
+        "assigned_students_count": assigned_students_count,
     })
 
 
