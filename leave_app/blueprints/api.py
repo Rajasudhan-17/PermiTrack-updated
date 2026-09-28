@@ -5,6 +5,7 @@ from functools import wraps
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, logout_user
+from sqlalchemy import func, or_
 
 from ..extensions import db
 from ..models import APIToken, AttendanceRecord, AttendanceStatus, Leave, OD, OTPToken, RequestStatus, Role, User, utcnow
@@ -65,7 +66,14 @@ def api_login():
         locked_until_display = locked_until.strftime("%Y-%m-%d %H:%M:%S") if locked_until else "later"
         return jsonify({"message": f"Too many failed sign-in attempts. Try again after {locked_until_display}."}), 429
 
-    user = User.query.filter_by(username=username).first()
+    user = User.query.filter(
+        or_(
+            User.username == username,
+            func.lower(User.username) == username.lower(),
+            func.lower(User.email) == username.lower(),
+            func.lower(User.register_number) == username.lower(),
+        )
+    ).first()
     if user and user.check_password(password):
         # Clear rate limiting attempts on successful login
         clear_failed_logins(username, client_ip)

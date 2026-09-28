@@ -126,6 +126,7 @@ class User(UserMixin, db.Model):
     register_number = db.Column(db.String(50), unique=True, nullable=True)
     date_of_birth = db.Column(db.Date, nullable=True)
     father_name = db.Column(db.String(150), nullable=True)
+    leave_balance = db.Column(db.Integer, default=20, nullable=False)
     version_id = db.Column(db.Integer, nullable=False, default=1)
     is_blocked = db.Column(db.Boolean, default=False, nullable=False)
     api_token = db.Column(db.String(255), unique=True, nullable=True)

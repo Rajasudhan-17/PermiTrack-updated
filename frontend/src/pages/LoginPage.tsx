@@ -170,8 +170,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <form className="space-y-5" onSubmit={handleLoginSubmit}>
               <div>
                 <Input
-                  label="Username / Roll Number"
-                  placeholder="e.g. 310624205213 or student"
+                  label="Register Number / Email / Username"
+                  placeholder="e.g. 310624205188, student@gmail.com, or username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   leftIcon={<User className="w-4 h-4 text-text-muted" />}

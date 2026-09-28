@@ -3,6 +3,8 @@ from datetime import timedelta
 from flask import Blueprint, flash, redirect, render_template, request, url_for, session, current_app
 from flask_login import current_user, login_required, login_user, logout_user
 
+from sqlalchemy import func, or_
+
 from ..services.auth_security import (
     clear_failed_logins,
     login_allowed,
@@ -28,7 +30,7 @@ def login():
         client_ip = request.remote_addr or "unknown"
 
         if not username or not password:
-            flash("Username and password are required.", "danger")
+            flash("Username, email or register number and password are required.", "danger")
             return redirect(url_for("auth.login"))
 
         allowed, locked_until = login_allowed(username, client_ip)
@@ -37,7 +39,14 @@ def login():
             flash(f"Too many failed sign-in attempts. Try again after {locked_until_display}.", "danger")
             return redirect(url_for("auth.login"))
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter(
+            or_(
+                User.username == username,
+                func.lower(User.username) == username.lower(),
+                func.lower(User.email) == username.lower(),
+                func.lower(User.register_number) == username.lower(),
+            )
+        ).first()
         if user and user.check_password(password):
             clear_failed_logins(username, client_ip)
             session.pop("active_role", None)
@@ -48,7 +57,7 @@ def login():
 
         register_failed_login(username, client_ip)
         log_audit_event("LOGIN_FAILED", details=f"Username attempted: {username}")
-        flash("Invalid username or password.", "danger")
+        flash("Invalid credentials.", "danger")
         return redirect(url_for("auth.login"))
 
     if current_app.config.get("TESTING"):

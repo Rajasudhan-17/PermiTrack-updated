@@ -54,8 +54,8 @@
         <form method="post" action="{{ url_for('auth.login') }}">
           {{ csrf_input() }}
           <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
-            <input type="text" class="form-control" id="username" name="username" placeholder="Enter username" required>
+            <label for="username" class="form-label">Register Number / Email / Username</label>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Enter register number, email, or username" required>
           </div>
 
           <div class="mb-4">

@@ -39,6 +39,29 @@ def test_api_login_token_hashing_and_lifecycle(client, seed_data):
     assert res_dash_after.status_code == 401
 
 
+def test_api_login_by_email_and_register_number(client, seed_data):
+    student = seed_data["student"]
+    student.register_number = "REG123456"
+    student.email = "student_test@example.com"
+    db.session.commit()
+
+    # 1. Login using Register Number
+    res_reg = client.post(
+        "/api/v1/auth/login",
+        json={"username": "REG123456", "password": "password"}
+    )
+    assert res_reg.status_code == 200
+    assert res_reg.get_json()["user"]["username"] == student.username
+
+    # 2. Login using Email
+    res_email = client.post(
+        "/api/v1/auth/login",
+        json={"username": "STUDENT_TEST@EXAMPLE.COM", "password": "password"}
+    )
+    assert res_email.status_code == 200
+    assert res_email.get_json()["user"]["username"] == student.username
+
+
 def test_api_login_rate_limiting(client, seed_data):
     # Configure rate limits for testing
     from flask import current_app
