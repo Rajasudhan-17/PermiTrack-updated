@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -145,16 +145,67 @@ def cache_pending_counts(user_id: int, role: str, leave_count: int, od_count: in
         return False
 
 
-def invalidate_all_pending_counts() -> bool:
-    """Clear all pending approval count caches when a leave or OD is created/updated."""
+# ============================================================================
+# Generic JSON & Pattern Caching Helpers
+# ============================================================================
+
+def cache_json(key: str, data: Any, ttl_seconds: int = 60) -> bool:
+    """Store arbitrary JSON-serializable data in Redis with TTL."""
+    client = get_redis_client()
+    if not client or not key or data is None:
+        return False
+    try:
+        client.set(key, json.dumps(data), ex=ttl_seconds)
+        return True
+    except Exception as exc:
+        logger.debug("Redis cache_json failed for key %s: %s", key, exc)
+        return False
+
+
+def get_cached_json(key: str) -> Optional[Any]:
+    """Retrieve JSON-deserialized data from Redis."""
+    client = get_redis_client()
+    if not client or not key:
+        return None
+    try:
+        val = client.get(key)
+        if val is not None:
+            return json.loads(val)
+        return None
+    except Exception as exc:
+        logger.debug("Redis get_cached_json failed for key %s: %s", key, exc)
+        return None
+
+
+def invalidate_cache_pattern(*patterns: str) -> bool:
+    """Delete keys matching given wildcard patterns."""
     client = get_redis_client()
     if not client:
         return False
     try:
-        keys = client.keys("pending_counts:*")
-        if keys:
-            client.delete(*keys)
+        all_keys = []
+        for pat in patterns:
+            keys = client.keys(pat)
+            if keys:
+                all_keys.extend(keys)
+        if all_keys:
+            client.delete(*all_keys)
         return True
     except Exception as exc:
-        logger.debug("Redis invalidate_all_pending_counts failed: %s", exc)
+        logger.debug("Redis invalidate_cache_pattern failed: %s", exc)
         return False
+
+
+def invalidate_workflow_caches(user_id: Optional[int] = None) -> bool:
+    """Clear all pending counts, dashboard metrics, and student list caches."""
+    patterns = ["pending_counts:*", "students_list:*", "dashboard:admin:*"]
+    if user_id:
+        patterns.append(f"dashboard:{user_id}:*")
+    else:
+        patterns.append("dashboard:*")
+    return invalidate_cache_pattern(*patterns)
+
+
+def invalidate_all_pending_counts() -> bool:
+    """Clear all pending approval count caches when a leave or OD is created/updated."""
+    return invalidate_workflow_caches()

@@ -12,7 +12,15 @@ from ..models import APIToken, AttendanceRecord, AttendanceStatus, Leave, OD, OT
 from ..services.auth_security import clear_failed_logins, login_allowed, register_failed_login
 from ..services.workflows import pending_counts_for_user
 from ..services.risk_scoring import calculate_leave_risk, calculate_od_risk
-from ..services.redis_client import cache_token_user_id, get_cached_token_user_id, invalidate_token_cache
+from ..services.redis_client import (
+    cache_token_user_id,
+    get_cached_token_user_id,
+    invalidate_token_cache,
+    cache_json,
+    get_cached_json,
+    invalidate_cache_pattern,
+    invalidate_workflow_caches,
+)
 
 bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -299,6 +307,13 @@ def api_switch_role(current_user):
 @bp.route("/dashboard", methods=["GET"])
 @token_required
 def api_dashboard(current_user):
+    cache_key = f"dashboard:{current_user.id}:{current_user.role}"
+    cached_metrics = get_cached_json(cache_key)
+    if cached_metrics is not None:
+        res = jsonify(cached_metrics)
+        res.headers["Cache-Control"] = "private, max-age=10"
+        return res
+
     if current_user.role == Role.ADMIN.value:
         metrics = {
             "role": current_user.role,
@@ -334,6 +349,7 @@ def api_dashboard(current_user):
                 "percentage": att_summary["percentage"],
                 "min_required_percentage": 80,
             }
+    cache_json(cache_key, metrics, ttl_seconds=45)
     res = jsonify(metrics)
     res.headers["Cache-Control"] = "private, max-age=10"
     return res
@@ -342,6 +358,13 @@ def api_dashboard(current_user):
 @bp.route("/leaves", methods=["GET"])
 @token_required
 def api_leaves(current_user):
+    cache_key = f"leaves:{current_user.id}"
+    cached_leaves = get_cached_json(cache_key)
+    if cached_leaves is not None:
+        res = jsonify(cached_leaves)
+        res.headers["Cache-Control"] = "private, max-age=10"
+        return res
+
     leaves = Leave.query.filter_by(requested_by=current_user.id).order_by(Leave.applied_on.desc()).all()
     result = []
     for l in leaves:
@@ -359,6 +382,7 @@ def api_leaves(current_user):
                 "proof_url": f"/api/v1/leaves/{l.id}/proof" if l.proof_filename else None,
             }
         )
+    cache_json(cache_key, result, ttl_seconds=60)
     res = jsonify(result)
     res.headers["Cache-Control"] = "private, max-age=10"
     return res
@@ -367,6 +391,13 @@ def api_leaves(current_user):
 @bp.route("/ods", methods=["GET"])
 @token_required
 def api_ods(current_user):
+    cache_key = f"ods:{current_user.id}"
+    cached_ods = get_cached_json(cache_key)
+    if cached_ods is not None:
+        res = jsonify(cached_ods)
+        res.headers["Cache-Control"] = "private, max-age=10"
+        return res
+
     ods = OD.query.filter_by(requested_by=current_user.id).order_by(OD.applied_on.desc()).all()
     result = []
     seen_dates = set()
@@ -407,6 +438,7 @@ def api_ods(current_user):
                 }
             )
 
+    cache_json(cache_key, result, ttl_seconds=60)
     res = jsonify(result)
     res.headers["Cache-Control"] = "private, max-age=10"
     return res
@@ -417,6 +449,13 @@ def api_ods(current_user):
 def api_students(current_user):
     if current_user.role not in (Role.FACULTY.value, Role.MENTOR.value, Role.HOD.value, Role.ADMIN.value):
         return jsonify({"message": "You are not authorized to view the students list."}), 403
+
+    cache_key = f"students_list:{current_user.id}:{current_user.role}"
+    cached_students = get_cached_json(cache_key)
+    if cached_students is not None:
+        res = jsonify(cached_students)
+        res.headers["Cache-Control"] = "private, max-age=10"
+        return res
 
     from ..services.attendance import get_student_attendance_summary
 
@@ -503,6 +542,7 @@ def api_students(current_user):
             }
         )
 
+    cache_json(cache_key, result, ttl_seconds=60)
     res = jsonify(result)
     res.headers["Cache-Control"] = "private, max-age=10"
     return res
@@ -955,6 +995,11 @@ def api_review_leave(current_user, leave_id):
 @bp.route("/profile", methods=["GET"])
 @token_required
 def api_profile(current_user):
+    cache_key = f"profile:{current_user.id}:{current_user.role}"
+    cached = get_cached_json(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
     mentor_name = None
     try:
         if getattr(current_user, "mentor", None):
@@ -989,7 +1034,80 @@ def api_profile(current_user):
     except Exception:
         dob_str = None
 
-    return jsonify({
+    class_group_name = None
+    try:
+        if getattr(current_user, "class_group", None):
+            cg = current_user.class_group
+            class_group_name = f"Year {cg.year} - Sec {cg.section}"
+        elif getattr(current_user, "assigned_classes", None):
+            ac = current_user.assigned_classes
+            class_group_name = f"Year {ac.year} - Sec {ac.section}"
+    except Exception:
+        class_group_name = None
+
+    role_normalized = (getattr(current_user, "role", "student") or "student").lower()
+
+    # Calculate real student count matching api_students query logic
+    assigned_students_count = 0
+    try:
+        if role_normalized == "hod":
+            if current_user.department_id:
+                assigned_students_count = User.query.filter_by(_role=Role.STUDENT.value, department_id=current_user.department_id).count()
+            if assigned_students_count == 0:
+                assigned_students_count = User.query.filter_by(_role=Role.STUDENT.value).count()
+
+        elif role_normalized in ("faculty", "mentor"):
+            from ..models import ClassGroup
+            classes = ClassGroup.query.filter_by(faculty_id=current_user.id).all()
+            class_ids = [cg.id for cg in classes]
+
+            count = User.query.filter(
+                User._role == Role.STUDENT.value,
+                (
+                    (User.faculty_id == current_user.id)
+                    | (User.mentor_id == current_user.id)
+                    | (User.class_group_id.in_(class_ids) if class_ids else False)
+                )
+            ).count()
+
+            if count == 0 and current_user.department_id:
+                count = User.query.filter_by(_role=Role.STUDENT.value, department_id=current_user.department_id).count()
+
+            if count == 0:
+                count = User.query.filter_by(_role=Role.STUDENT.value).count()
+
+            assigned_students_count = count
+
+        elif role_normalized == "admin":
+            assigned_students_count = User.query.filter_by(_role=Role.STUDENT.value).count()
+    except Exception:
+        assigned_students_count = 0
+
+    # Real counts for user's own requests
+    total_leaves = Leave.query.filter_by(requested_by=current_user.id).count()
+    approved_leaves = Leave.query.filter_by(requested_by=current_user.id, status=RequestStatus.APPROVED.value).count()
+    total_ods = OD.query.filter_by(requested_by=current_user.id).count()
+    approved_ods = OD.query.filter_by(requested_by=current_user.id, status=RequestStatus.APPROVED.value).count()
+
+    # Attendance summary
+    att_summary = {"percentage": 100, "total_days": 0, "present_days": 0, "absent_days": 0, "od_days": 0, "leave_days": 0}
+    if role_normalized == "student":
+        try:
+            from ..services.attendance import get_student_attendance_summary
+            att_summary = get_student_attendance_summary(current_user.id)
+        except Exception:
+            pass
+
+    # Real pending queue count for approvals (for faculty, mentor, hod)
+    pending_queue_count = 0
+    if role_normalized in ("faculty", "mentor", "hod", "admin"):
+        try:
+            l_cnt, o_cnt = pending_counts_for_user(current_user)
+            pending_queue_count = l_cnt + o_cnt
+        except Exception:
+            pending_queue_count = 0
+
+    payload = {
         "id": current_user.id,
         "username": current_user.username or "",
         "full_name": current_user.full_name or current_user.username or "User Account",
@@ -1002,7 +1120,17 @@ def api_profile(current_user):
         "roll_number": getattr(current_user, "register_number", None) or current_user.username or "N/A",
         "father_name": getattr(current_user, "father_name", None) or "Not specified",
         "date_of_birth": dob_str or "Not specified",
-    })
+        "class_group_name": class_group_name or "N/A",
+        "assigned_students_count": assigned_students_count,
+        "total_leaves": total_leaves,
+        "approved_leaves": approved_leaves,
+        "total_ods": total_ods,
+        "approved_ods": approved_ods,
+        "attendance": att_summary,
+        "pending_queue_count": pending_queue_count,
+    }
+    cache_json(cache_key, payload, ttl_seconds=300)
+    return jsonify(payload)
 
 
 @bp.route("/auth/change-password", methods=["POST"])
@@ -1304,6 +1432,7 @@ def api_admin_create_user(current_user):
             cg.faculty_id = new_user.id
 
     db.session.commit()
+    invalidate_cache_pattern("admin:departments*", "admin:classes*", "students_list:*")
     return jsonify({"message": f"{role.capitalize()} user created successfully", "user_id": new_user.id}), 201
 
 
@@ -1330,6 +1459,7 @@ def api_admin_delete_user(current_user, user_id):
 
     db.session.delete(user)
     db.session.commit()
+    invalidate_cache_pattern("admin:departments*", "admin:classes*", "students_list:*", "dashboard:*", "profile:*")
     return jsonify({"message": f"Deleted user '{user.full_name or user.username}' ({leave_count} leaves, {od_count} ODs removed)"})
 
 
@@ -1350,7 +1480,12 @@ def api_admin_departments(current_user):
         dept = Department(name=name)
         db.session.add(dept)
         db.session.commit()
+        invalidate_cache_pattern("admin:departments*")
         return jsonify({"message": "Department created successfully", "department_id": dept.id}), 201
+
+    cached = get_cached_json("admin:departments")
+    if cached is not None:
+        return jsonify(cached)
 
     departments = Department.query.order_by(Department.name.asc()).all()
     result = []
@@ -1364,6 +1499,7 @@ def api_admin_departments(current_user):
             "class_count": len(d.classes),
             "student_count": User.query.filter_by(department_id=d.id, role=Role.STUDENT.value).count(),
         })
+    cache_json("admin:departments", result, ttl_seconds=300)
     return jsonify(result)
 
 
@@ -1387,7 +1523,12 @@ def api_admin_classes(current_user):
         cg = ClassGroup(department_id=dept_id, year=year, section=section)
         db.session.add(cg)
         db.session.commit()
+        invalidate_cache_pattern("admin:classes*")
         return jsonify({"message": "Class group created successfully", "class_id": cg.id}), 201
+
+    cached = get_cached_json("admin:classes")
+    if cached is not None:
+        return jsonify(cached)
 
     classes = ClassGroup.query.order_by(ClassGroup.department_id, ClassGroup.year, ClassGroup.section).all()
     result = []
@@ -1404,6 +1545,7 @@ def api_admin_classes(current_user):
             "faculty_name": faculty_name,
             "student_count": User.query.filter_by(class_group_id=c.id, role=Role.STUDENT.value).count(),
         })
+    cache_json("admin:classes", result, ttl_seconds=300)
     return jsonify(result)
 
 
@@ -1425,6 +1567,7 @@ def api_admin_assign_hod(current_user):
     dept.hod_id = hod_user.id
     hod_user.department_id = dept.id
     db.session.commit()
+    invalidate_cache_pattern("admin:departments*", "profile:*")
     return jsonify({"message": f"Assigned HOD {hod_user.full_name or hod_user.username} to {dept.name}"})
 
 
@@ -1446,6 +1589,7 @@ def api_admin_assign_faculty(current_user):
     cg.faculty_id = fac_user.id
     fac_user.department_id = cg.department_id
     db.session.commit()
+    invalidate_cache_pattern("admin:classes*", "students_list:*", "profile:*")
     return jsonify({"message": f"Assigned Faculty {fac_user.full_name or fac_user.username} to Y{cg.year}{cg.section}"})
 
 
@@ -1473,6 +1617,7 @@ def api_admin_assign_mentor(current_user):
             updated += 1
 
     db.session.commit()
+    invalidate_cache_pattern("students_list:*", "profile:*")
     return jsonify({"message": f"Assigned Mentor {mentor.full_name or mentor.username} to {updated} student(s)"})
 
 
