@@ -16,3 +16,5 @@ services:
         value: "*" # Replace with your Vercel frontend URL once deployed
       - key: AUTO_CREATE_TABLES
         value: "true"
+      - key: REDIS_URL
+        sync: false

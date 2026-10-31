@@ -8,6 +8,7 @@ from ..extensions import db
 from ..models import ClassGroup, Leave, OD, RequestStatus, Role, User
 from .emailing import send_email
 from .audit import log_audit_event
+from .redis_client import get_cached_pending_counts, cache_pending_counts, invalidate_all_pending_counts
 
 
 def utcnow():
@@ -109,6 +110,11 @@ def pending_counts_for_user(user):
     if not user.is_authenticated:
         return pending_leave_count, pending_od_count
 
+    if user.id and user.role:
+        cached = get_cached_pending_counts(user.id, user.role)
+        if cached is not None:
+            return cached
+
     if user.role == Role.EVENT_COORDINATOR.value:
         pending_leave_count = 0
         pending_od_count = OD.query.filter(
@@ -162,6 +168,9 @@ def pending_counts_for_user(user):
             .filter(User.department_id.in_(dept_ids), OD.status == RequestStatus.FACULTY_APPROVED.value)
             .count()
         )
+
+    if user.id and user.role:
+        cache_pending_counts(user.id, user.role, pending_leave_count, pending_od_count, ttl_seconds=60)
 
     return pending_leave_count, pending_od_count
 
@@ -353,6 +362,7 @@ def submit_leave_request(user, start_date, end_date, reason, is_emergency):
         )
         db.session.add(leave)
         db.session.commit()
+        invalidate_all_pending_counts()
         log_audit_event("LEAVE_REQUESTED", leave)
         notify_leave_submission(leave, locked_user)
         return True, leave, None
@@ -446,6 +456,7 @@ def apply_leave_review(leave_id, reviewer_id, action, comment):
         leave.review_comment = comment
         leave.reviewed_on = utcnow()
         db.session.commit()
+        invalidate_all_pending_counts()
         log_audit_event(
             f"LEAVE_REVIEW_{action}",
             leave,
@@ -571,6 +582,7 @@ def apply_od_review(od_id, reviewer_id, action, comment):
         od.review_comment = comment
         od.reviewed_on = utcnow()
         db.session.commit()
+        invalidate_all_pending_counts()
         log_audit_event(
             f"OD_REVIEW_{action}",
             od,

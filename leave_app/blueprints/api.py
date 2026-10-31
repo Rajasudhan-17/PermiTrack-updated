@@ -12,6 +12,7 @@ from ..models import APIToken, AttendanceRecord, AttendanceStatus, Leave, OD, OT
 from ..services.auth_security import clear_failed_logins, login_allowed, register_failed_login
 from ..services.workflows import pending_counts_for_user
 from ..services.risk_scoring import calculate_leave_risk, calculate_od_risk
+from ..services.redis_client import cache_token_user_id, get_cached_token_user_id, invalidate_token_cache
 
 bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -31,14 +32,26 @@ def token_required(f):
 
         if token:
             hashed = hash_token(token)
-            api_token = APIToken.query.filter_by(hashed_token=hashed).first()
-            if api_token:
-                if not api_token.is_revoked and api_token.expires_at and api_token.expires_at >= utcnow():
-                    user = api_token.user
-            else:
-                u = User.query.filter((User.api_token == hashed) | (User.api_token == token)).first()
-                if u and (not u.token_expires_at or u.token_expires_at >= utcnow()):
-                    user = u
+            cached_user_id = get_cached_token_user_id(hashed)
+            if cached_user_id:
+                user = db.session.get(User, cached_user_id)
+                if user and (getattr(user, "is_blocked", False) or not user.is_authenticated):
+                    user = None
+
+            if not user:
+                api_token = APIToken.query.filter_by(hashed_token=hashed).first()
+                if api_token:
+                    if not api_token.is_revoked and api_token.expires_at and api_token.expires_at >= utcnow():
+                        user = api_token.user
+                        if user and not getattr(user, "is_blocked", False):
+                            remaining_ttl = int((api_token.expires_at - utcnow()).total_seconds())
+                            cache_token_user_id(hashed, user.id, ttl_seconds=min(remaining_ttl, 900))
+                else:
+                    u = User.query.filter((User.api_token == hashed) | (User.api_token == token)).first()
+                    if u and (not u.token_expires_at or u.token_expires_at >= utcnow()):
+                        user = u
+                        if user and not getattr(user, "is_blocked", False):
+                            cache_token_user_id(hashed, user.id, ttl_seconds=900)
 
         if not user and getattr(current_user, "is_authenticated", False):
             user = current_user
@@ -97,6 +110,9 @@ def api_login():
         user.token_expires_at = expires_at
         db.session.commit()
 
+        # Pre-warm Redis cache with 15-minute TTL
+        cache_token_user_id(hashed_token, user.id, ttl_seconds=900)
+
         return jsonify(
             {
                 "message": "Login successful",
@@ -120,6 +136,7 @@ def api_logout():
     token = request.headers.get("X-API-Token")
     if token:
         hashed = hash_token(token)
+        invalidate_token_cache(hashed)
         api_token = APIToken.query.filter_by(hashed_token=hashed).first()
         if api_token:
             api_token.is_revoked = True

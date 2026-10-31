@@ -421,6 +421,36 @@ def test_get_student_detail(client, seed_data):
     assert "total_working_days" in data["attendance"]
 
 
+def test_redis_token_caching_and_invalidation(client, seed_data):
+    from leave_app.services.redis_client import get_redis_client, get_cached_token_user_id
+    from leave_app.blueprints.api import hash_token
+
+    student = seed_data["student"]
+
+    # 1. Login should pre-warm / cache token in Redis
+    res_login = client.post("/api/v1/auth/login", json={"username": student.username, "password": "password"})
+    assert res_login.status_code == 200
+    token = res_login.get_json()["token"]
+    hashed = hash_token(token)
+
+    r = get_redis_client()
+    if r:
+        cached_id = get_cached_token_user_id(hashed)
+        assert cached_id == student.id
+
+    # 2. Authenticated request using cached token
+    res_dash = client.get("/api/v1/dashboard", headers={"X-API-Token": token})
+    assert res_dash.status_code == 200
+
+    # 3. Logout should invalidate the Redis cache
+    res_logout = client.post("/api/v1/auth/logout", headers={"X-API-Token": token})
+    assert res_logout.status_code == 200
+
+    if r:
+        cached_id_after = get_cached_token_user_id(hashed)
+        assert cached_id_after is None
+
+
 
 
 
